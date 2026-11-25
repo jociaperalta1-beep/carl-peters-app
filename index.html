@@ -251,25 +251,25 @@ function calcDay(obj,dt,live=true){
   if(s3!==null){if(s4!==null&&s4>=s3)sec+=s4-s3;else if(s4===null&&nSec!==null&&nSec>=s3){sec+=nSec-s3;run=true;}}
   return{sec,norm:Math.min(sec,lim),ext:Math.max(0,sec-lim),run};
 }
-function pushEmp(e){if(db&&e)db.collection("empleados").doc(e.id).set(e,{merge:true}).catch(()=>{});}
-function pushMark(e,dt,o){if(!db||!e)return;const c=calcDay(o,dt,false);db.collection("asistencias").doc(`${e.id}__${dt}`).set({empId:e.id,empleadoNombre:e.name,ci:e.ci,sector:e.sector,fecha:dt,m1:o.m1||"",m2:o.m2||"",m3:o.m3||"",m4:o.m4||"",normalesSec:c.norm,extrasSec:c.ext,totalSec:c.sec,updatedAt:Date.now()},{merge:true}).catch(()=>{});}
+function pushEmp(e){if(db&&e)db.collection("cp_empleados").doc(e.id).set(e,{merge:true}).catch(()=>{});}
+function pushMark(e,dt,o){if(!db||!e)return;const c=calcDay(o,dt,false);db.collection("cp_asistencias").doc(`${e.id}__${dt}`).set({empId:e.id,empleadoNombre:e.name,ci:e.ci,sector:e.sector,fecha:dt,m1:o.m1||"",m2:o.m2||"",m3:o.m3||"",m4:o.m4||"",normalesSec:c.norm,extrasSec:c.ext,totalSec:c.sec,updatedAt:Date.now()},{merge:true}).catch(()=>{});}
 function persist(push=true){
   localStorage.setItem(CACHE_KEY,JSON.stringify(state));renderAll();
-  if(push&&db){db.collection("config").doc("carl_peters").set({companyLogo:state.companyLogo||"",rules:state.rules||{wd:8,sat:4},updatedAt:Date.now()},{merge:true}).catch(()=>{});(state.employees||[]).forEach(pushEmp);}
+  if(push&&db){db.collection("cp_config").doc("carl_peters").set({companyLogo:state.companyLogo||"",rules:state.rules||{wd:8,sat:4},updatedAt:Date.now()},{merge:true}).catch(()=>{});(state.employees||[]).forEach(pushEmp);}
 }
 function setLiveUI(ok){
-  fbConnected=ok;const b=document.getElementById("fbBadge");if(b){b.className=ok?"b-on":"b-off";b.textContent=ok?"En Vivo (hph-transporte-sa)":"Modo Local";}
+  fbConnected=ok;const b=document.getElementById("fbBadge");if(b){b.className=ok?"b-on":"b-off";b.textContent=ok?"En Vivo • Firestore":"Modo Local";}
   const emp=getMobEmp(),txt=(ok?"● EN VIVO":"● SIN CONEXIÓN")+(emp?" • "+emp.name:"");
   ["mobAuthLive","mobLiveTag"].forEach(id=>{const el=document.getElementById(id);if(el){el.className="live-tag "+(ok?"on":"off");el.textContent=txt;}});
 }
 function initFB(){
   try{
     if(!window.firebase){setLiveUI(false);return;}
-    const app=firebase.apps.length?firebase.app():firebase.initializeApp(FB_CFG);db=app.firestore();
-    db.collection("config").doc("carl_peters").onSnapshot(s=>{setLiveUI(true);if(s.exists){const d=s.data();if(d.companyLogo!==undefined)state.companyLogo=d.companyLogo;if(d.rules)state.rules=d.rules;localStorage.setItem(CACHE_KEY,JSON.stringify(state));renderAll();}},()=>setLiveUI(false));
-    db.collection("empleados").onSnapshot(s=>{setLiveUI(true);if(s.empty)return;const m=new Map((state.employees||[]).map(e=>[e.id,e]));s.forEach(d=>{const x=d.data();if(x&&x.id)m.set(x.id,x);});state.employees=Array.from(m.values());localStorage.setItem(CACHE_KEY,JSON.stringify(state));renderAll();},()=>{});
-    db.collection("asistencias").onSnapshot(s=>{setLiveUI(true);if(s.empty)return;s.forEach(d=>{const x=d.data();if(!x||!x.empId||!x.fecha)return;if(!state.marks[x.empId])state.marks[x.empId]={};state.marks[x.empId][x.fecha]={m1:x.m1||"",m2:x.m2||"",m3:x.m3||"",m4:x.m4||""};});localStorage.setItem(CACHE_KEY,JSON.stringify(state));renderAll();},()=>{});
-    db.collection("ubicaciones").onSnapshot(s=>{setLiveUI(true);gpsLive={};s.forEach(d=>{if(!d.id.includes("__"))gpsLive[d.id]=d.data();});if(gpsMode==="live"&&map)drawGpsLive(false);},()=>{});
+    const app=firebase.apps.length?firebase.app():firebase.initializeApp(FB_CFG);db=(typeof firebase.firestore==="function"&&app.firestore)?app.firestore("ai-studio-hphtransportesa-1e2bfd61-bf5d-48bd-91cc-00d1585dd907"):null;
+    db.collection("cp_config").doc("carl_peters").onSnapshot(s=>{setLiveUI(true);if(s.exists){const d=s.data();if(d.companyLogo!==undefined)state.companyLogo=d.companyLogo;if(d.rules)state.rules=d.rules;localStorage.setItem(CACHE_KEY,JSON.stringify(state));renderAll();}},()=>setLiveUI(false));
+    db.collection("cp_empleados").onSnapshot(s=>{setLiveUI(true);if(s.empty)return;const m=new Map((state.employees||[]).map(e=>[e.id,e]));s.forEach(d=>{const x=d.data();if(x&&x.id)m.set(x.id,x);});state.employees=Array.from(m.values());localStorage.setItem(CACHE_KEY,JSON.stringify(state));renderAll();},()=>{});
+    db.collection("cp_asistencias").onSnapshot(s=>{setLiveUI(true);if(s.empty)return;s.forEach(d=>{const x=d.data();if(!x||!x.empId||!x.fecha)return;if(!state.marks[x.empId])state.marks[x.empId]={};state.marks[x.empId][x.fecha]={m1:x.m1||"",m2:x.m2||"",m3:x.m3||"",m4:x.m4||""};});localStorage.setItem(CACHE_KEY,JSON.stringify(state));renderAll();},()=>{});
+    db.collection("cp_ubicaciones").onSnapshot(s=>{setLiveUI(true);gpsLive={};s.forEach(d=>{if(!d.id.includes("__"))gpsLive[d.id]=d.data();});if(gpsMode==="live"&&map)drawGpsLive(false);},()=>{});
   }catch{setLiveUI(false);}
 }
 function setLayout(m){
@@ -301,7 +301,7 @@ function openEmpEdit(id){editId=id;const e=state.employees.find(x=>x.id===id);if
 function closeEmpEdit(){editId=null;document.getElementById("empEditBox").classList.add("hidden");}
 function applyEmpEdit(){const e=state.employees.find(x=>x.id===editId);if(!e)return;const pin=document.getElementById("edPin").value.trim();if(pin&&!/^\d{4}$/.test(pin))return alert("PIN de 4 dígitos.");e.name=document.getElementById("edName").value.trim()||e.name;e.ci=document.getElementById("edCi").value.trim()||e.ci;e.sector=document.getElementById("edSec").value.trim()||e.sector;if(pin){e.pin=pin;e.pinReset=false;}pushEmp(e);persist(true);alert("Guardado.");}
 function resetEmpPin(){const e=state.employees.find(x=>x.id===editId);if(!e)return;e.pin="";e.pinReset=true;document.getElementById("edPin").value="";pushEmp(e);persist(true);alert("PIN reseteado.");}
-function deleteEmp(){if(!editId||!confirm("¿Eliminar empleado?"))return;const id=editId;state.employees=state.employees.filter(x=>x.id!==id);delete state.marks[id];if(db)db.collection("empleados").doc(id).delete().catch(()=>{});closeEmpEdit();persist(true);}
+function deleteEmp(){if(!editId||!confirm("¿Eliminar empleado?"))return;const id=editId;state.employees=state.employees.filter(x=>x.id!==id);delete state.marks[id];if(db)db.collection("cp_empleados").doc(id).delete().catch(()=>{});closeEmpEdit();persist(true);}
 function periodDates(mStr,per){const[y,m]=(mStr||today().slice(0,7)).split("-").map(Number);const last=new Date(y,m,0).getDate(),s=per==="2"?16:1,e=per==="1"?Math.min(15,last):last;const out=[];for(let d=s;d<=e;d++)out.push(`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`);return out;}
 function renderCal(){
   const id=document.getElementById("calEmp").value||state.employees[0]?.id,m=document.getElementById("calMonth").value||today().slice(0,7),per=document.getElementById("calPer").value||"1";
@@ -317,7 +317,7 @@ function refreshGps(fit){
   initMap();setTimeout(()=>map&&map.invalidateSize(),100);if(gpsMode==="live"){drawGpsLive(fit);return;}
   mkLay.clearLayers();if(poly){map.removeLayer(poly);poly=null;}const id=document.getElementById("gpsEmp").value,dt=document.getElementById("gpsDate").value||today();
   if(!db||!id||id==="ALL")return;
-  db.collection("ubicaciones").doc(`${id}__${dt}`).get().then(doc=>{const arr=doc.exists&&Array.isArray(doc.data().points)?doc.data().points:[];if(!arr.length)return;const ll=arr.map(p=>[p.lat,p.lng]);poly=L.polyline(ll,{color:"#dc2626",weight:4}).addTo(mkLay);arr.forEach(p=>L.circleMarker([p.lat,p.lng],{radius:5,color:"#fff",fillColor:"#dc2626",fillOpacity:1}).bindPopup(`${p.hora} (${p.speed} km/h)`).addTo(mkLay));if(fit)map.fitBounds(poly.getBounds(),{padding:[30,30]});}).catch(()=>{});
+  db.collection("cp_ubicaciones").doc(`${id}__${dt}`).get().then(doc=>{const arr=doc.exists&&Array.isArray(doc.data().points)?doc.data().points:[];if(!arr.length)return;const ll=arr.map(p=>[p.lat,p.lng]);poly=L.polyline(ll,{color:"#dc2626",weight:4}).addTo(mkLay);arr.forEach(p=>L.circleMarker([p.lat,p.lng],{radius:5,color:"#fff",fillColor:"#dc2626",fillOpacity:1}).bindPopup(`${p.hora} (${p.speed} km/h)`).addTo(mkLay));if(fit)map.fitBounds(poly.getBounds(),{padding:[30,30]});}).catch(()=>{});
 }
 function centerGps(){refreshGps(true);}
 function uploadLogo(ev){const f=ev.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=220;c.height=220;c.getContext("2d").drawImage(img,0,0,220,220);state.companyLogo=c.toDataURL("image/png",.9);persist(true);};img.src=e.target.result;};r.readAsDataURL(f);}
@@ -327,13 +327,13 @@ function enableGpsOnce(){if(!navigator.geolocation)return alert("GPS no disponib
 function sendGps(pos){
   const emp=getMobEmp();if(!emp||!pos?.coords)return;const dt=today(),tm=nowT(),spd=pos.coords.speed?+(pos.coords.speed*3.6).toFixed(1):0;
   const d={empId:emp.id,name:emp.name,sector:emp.sector,lat:+pos.coords.latitude.toFixed(6),lng:+pos.coords.longitude.toFixed(6),speed:spd,fecha:dt,hora:tm,ts:Date.now()};gpsLive[emp.id]=d;
-  if(db){db.collection("ubicaciones").doc(emp.id).set(d,{merge:true}).catch(()=>{});db.collection("ubicaciones").doc(`${emp.id}__${dt}`).set({empId:emp.id,name:emp.name,fecha:dt,points:firebase.firestore.FieldValue.arrayUnion({lat:d.lat,lng:d.lng,speed:spd,hora:tm,ts:d.ts})},{merge:true}).catch(()=>{});}
+  if(db){db.collection("cp_ubicaciones").doc(emp.id).set(d,{merge:true}).catch(()=>{});db.collection("cp_ubicaciones").doc(`${emp.id}__${dt}`).set({empId:emp.id,name:emp.name,fecha:dt,points:firebase.firestore.FieldValue.arrayUnion({lat:d.lat,lng:d.lng,speed:spd,hora:tm,ts:d.ts})},{merge:true}).catch(()=>{});}
 }
 function startGpsLoop(){if(gpsTimer)return;gpsTimer=setInterval(()=>{if(localStorage.getItem(GPS_KEY)==="1"&&getMobEmp()&&navigator.geolocation)navigator.geolocation.getCurrentPosition(sendGps,()=>{},{enableHighAccuracy:true,maximumAge:5000});},10000);}
 function wipeAllData(){
   if(!confirm("¿Borrar todos los empleados, marcaciones y GPS?"))return;if(prompt("Escriba BORRAR para confirmar:")!=="BORRAR")return;
   state={companyLogo:state.companyLogo||"",rules:{wd:8,sat:4},employees:[],marks:{}};localStorage.removeItem(MOB_KEY);
-  if(db){["empleados","asistencias","ubicaciones"].forEach(col=>db.collection(col).get().then(s=>s.forEach(d=>d.ref.delete().catch(()=>{}))).catch(()=>{}));}
+  if(db){["cp_empleados","cp_asistencias","cp_ubicaciones"].forEach(col=>db.collection(col).get().then(s=>s.forEach(d=>d.ref.delete().catch(()=>{}))).catch(()=>{}));}
   persist(false);alert("Base limpia.");
 }
 const getMobEmp=()=>state.employees.find(e=>e.id===localStorage.getItem(MOB_KEY))||null;
