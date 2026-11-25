@@ -7,6 +7,8 @@
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" href="./icon-192.png" />
   <meta name="theme-color" content="#0f172a" />
+  <!-- Leaflet.js CSS for Admin GPS Tracking -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <style>
     :root {
       --bg-app: #f1f5f9;
@@ -242,6 +244,70 @@
       margin-bottom: 14px;
     }
 
+    /* GPS TAB STYLES (ADMIN ONLY) */
+    .gps-dark-bar {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid #1e293b;
+    }
+    .gps-dark-bar select,
+    .gps-dark-bar input[type="date"] {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      padding: 6px 10px;
+      font-size: 12px;
+      width: auto;
+    }
+    .gps-toggle-group {
+      display: inline-flex;
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 2px;
+      border: 1px solid #334155;
+    }
+    .gps-toggle-btn {
+      background: transparent;
+      color: #cbd5e1;
+      border: none;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .gps-toggle-btn.active {
+      background: var(--accent);
+      color: #ffffff;
+    }
+    #adminGpsMap {
+      width: 100%;
+      height: 490px;
+      border-radius: 0 0 12px 12px;
+      border: 1px solid #cbd5e1;
+      border-top: none;
+      z-index: 1;
+    }
+
+    /* COMPACT EMPLOYEE DRAWER / DETAIL CARD */
+    .emp-detail-box {
+      border: 2px solid #2563eb;
+      background: #f8fafc;
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-top: 14px;
+    }
+    .emp-row-selected {
+      background: #eff6ff !important;
+    }
+
     /* MOBILE APP EMULATOR */
     .phone-column {
       background: #e2e8f0;
@@ -304,15 +370,29 @@
     }
     .fingerprint-btn:active { transform: scale(0.95); background: #dbeafe; }
 
+    /* PIN RECOVERY MODAL INSIDE MOBILE APP */
+    .mobile-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 90;
+    }
+    .mobile-modal-box {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 340px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+      border: 1px solid #cbd5e1;
+    }
+
     .hidden { display: none !important; }
 
-    @media print {
-      .topbar-global, .sidebar, .phone-column, .no-print, .btn-exit { display: none !important; }
-      .workspace { display: block; }
-      .admin-main { padding: 0; }
-      .card { border: none; box-shadow: none; }
-    }
-  
     /* MODO SOLO APP APK EN CELULAR REAL (PANTALLA COMPLETA SIN MARCO DE SIMULADOR) */
     body.is-mobile-apk .topbar-global { padding: 8px 12px; }
     body.is-mobile-apk .mode-switch { display: none !important; }
@@ -339,6 +419,12 @@
       flex: 1;
     }
 
+    @media print {
+      .topbar-global, .sidebar, .phone-column, .no-print, .btn-exit { display: none !important; }
+      .workspace { display: block; }
+      .admin-main { padding: 0; }
+      .card { border: none; box-shadow: none; }
+    }
   </style>
 </head>
 <body>
@@ -363,7 +449,7 @@
         <span class="login-badge">🔒 ACCESO PROTEGIDO • ADMINISTRACIÓN</span>
         <h2 style="font-size:21px;font-weight:800;color:#0f172a;margin-bottom:4px;">CARL PETERS</h2>
         <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
-          Ingrese su usuario y clave/PIN de administrador para gestionar asistencia, horarios y liquidaciones en vivo.
+          Ingrese su usuario y clave/PIN de administrador para gestionar asistencia, horarios, GPS y liquidaciones en vivo.
         </p>
 
         <form onsubmit="handleAdminLogin(event)" style="display:grid;gap:12px;">
@@ -384,7 +470,7 @@
         </form>
 
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b;">
-          Acceso inicial por defecto: Usuario <strong>admin</strong> / Clave <strong>2026</strong> (puedes cambiarla adentro en Seguridad). La App móvil de marcación sigue disponible a la derecha sin bloquear al empleado.
+          Acceso inicial por defecto: Usuario <strong>admin</strong> / Clave <strong>2026</strong> (puedes cambiarla adentro en Configuración). La App móvil de marcación sigue disponible a la derecha sin bloquear al empleado.
         </div>
       </div>
     </section>
@@ -397,7 +483,8 @@
         <button class="nav-item" data-nav="rrhh" onclick="openAdminModule('rrhh')">👥 RRHH & Empleados</button>
         <button class="nav-item" data-nav="calendario" onclick="openAdminModule('calendario')">📅 Calendario & Quincena</button>
         <button class="nav-item" data-nav="liquidacion" onclick="openAdminModule('liquidacion')">💰 Salario / Liquidación</button>
-        <button class="nav-item" data-nav="seguridad" onclick="openAdminModule('seguridad')">🔐 Seguridad & Firebase</button>
+        <button class="nav-item" data-nav="gps" onclick="openAdminModule('gps')">🛰️ Ubicación GPS</button>
+        <button class="nav-item" data-nav="seguridad" onclick="openAdminModule('seguridad')">⚙️ Configuración & Seguridad</button>
         <button class="nav-item" style="margin-top:auto;background:#7f1d1d;color:#fecaca;" onclick="lockAdminSession()">🔒 Cerrar Sesión Admin</button>
       </aside>
 
@@ -463,7 +550,8 @@
               <button class="btn btn-primary" onclick="openAdminModule('rrhh')">👥 RRHH & Empleados</button>
               <button class="btn btn-primary" onclick="openAdminModule('calendario')">📅 Calendario & Quincena</button>
               <button class="btn btn-success" onclick="openAdminModule('liquidacion')">💰 Salario / Liquidación</button>
-              <button class="btn btn-dark" onclick="openAdminModule('seguridad')">🔐 Seguridad & Firebase</button>
+              <button class="btn btn-primary" onclick="openAdminModule('gps')">🛰️ Ubicación GPS</button>
+              <button class="btn btn-dark" onclick="openAdminModule('seguridad')">⚙️ Configuración & Seguridad</button>
             </div>
           </div>
         </div>
@@ -497,18 +585,20 @@
           </div>
         </div>
 
-        <!-- RRHH & EMPLEADOS -->
+        <!-- RRHH & EMPLEADOS (COMPACTO Y ORDENADO CON FICHA POR EMPLEADO) -->
         <div id="mod-rrhh" class="admin-module hidden">
           <div class="module-header">
             <div>
               <div class="module-title">RRHH & Empleados</div>
-              <div class="module-sub">Gestión de personal, sectores y PIN de acceso móvil</div>
+              <div class="module-sub">Lista compacta de personal • Haz clic en un empleado para gestionar horario, PDF, cierre y PIN</div>
             </div>
             <button class="btn-exit" onclick="exitToMenu()">✕ Salir / Volver</button>
           </div>
 
           <div class="card">
-            <div class="card-title">Registrar Nuevo Funcionario</div>
+            <div class="card-header-bar">
+              <div class="card-title">Registrar Nuevo Funcionario</div>
+            </div>
             <div class="grid-3">
               <div>
                 <label class="field-label">Nombre y Apellido</label>
@@ -533,8 +623,8 @@
                 <input id="empPhone" placeholder="595981000000" />
               </div>
               <div>
-                <label class="field-label">PIN App Móvil</label>
-                <input id="empPin" value="1234" />
+                <label class="field-label">PIN App Móvil (4 dígitos)</label>
+                <input id="empPin" maxlength="6" value="1234" />
               </div>
               <div style="display:flex;align-items:flex-end;">
                 <button class="btn btn-primary" style="width:100%;" onclick="addEmployee()">+ Guardar Funcionario</button>
@@ -543,7 +633,9 @@
           </div>
 
           <div class="card">
-            <div class="card-title">Nómina Activa</div>
+            <div class="card-header-bar">
+              <div class="card-title">Nómina Activa (Haz clic en "Gestionar" para abrir su ficha)</div>
+            </div>
             <table>
               <thead>
                 <tr>
@@ -551,12 +643,68 @@
                   <th>C.I.</th>
                   <th>Sector</th>
                   <th>WhatsApp</th>
-                  <th>PIN</th>
+                  <th>Estado PIN</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody id="employeesTableBody"></tbody>
             </table>
+
+            <!-- PANEL ORDENADO DEL EMPLEADO SELECCIONADO -->
+            <div id="selectedEmployeeCard" class="emp-detail-box hidden">
+              <div class="card-header-bar">
+                <div>
+                  <div class="card-title" id="selEmpHeaderTitle">Ficha del Funcionario</div>
+                  <div class="module-sub" id="selEmpHeaderSub"></div>
+                </div>
+                <button class="btn-exit btn-sm" onclick="closeSelectedEmployeeCard()">✕ Cerrar Ficha</button>
+              </div>
+
+              <div class="grid-3" style="margin-bottom:12px;">
+                <div>
+                  <label class="field-label">Mes</label>
+                  <input id="empDetailMonth" type="month" onchange="renderSelectedEmployeeSchedule()" />
+                </div>
+                <div>
+                  <label class="field-label">Filtro de Período</label>
+                  <select id="empDetailPeriod" onchange="renderSelectedEmployeeSchedule()">
+                    <option value="1">1ra Quincena (1–15)</option>
+                    <option value="2">2da Quincena (16–Fin)</option>
+                    <option value="ALL">Mes Completo (1–Fin)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label">Estado del Período</label>
+                  <div id="empDetailPeriodBadge" style="padding-top:6px;"></div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" class="no-print">
+                <button class="btn btn-sm btn-primary" onclick="renderSelectedEmployeeSchedule()">🕒 Ver Horario</button>
+                <button class="btn btn-sm btn-dark" onclick="printSelectedEmployeePDF()">🖨️ Descargar / Imprimir PDF</button>
+                <button id="btnCloseEmpPeriod" class="btn btn-sm btn-warning" onclick="closeSelectedEmployeePeriod()">🔒 Cerrar Período</button>
+                <button id="btnReopenEmpPeriod" class="btn btn-sm btn-outline hidden" onclick="reopenSelectedEmployeePeriod()">🔓 Reabrir Período</button>
+                <button class="btn btn-sm btn-success" onclick="resetPinAndSendWhatsApp()">📲 Resetear PIN / Enviar por WhatsApp</button>
+              </div>
+
+              <div id="empDetailTotals" class="kpi-grid" style="margin-bottom:12px;"></div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha / Día</th>
+                    <th>1. Ent.</th>
+                    <th>2. Sal.</th>
+                    <th>3. Ent.</th>
+                    <th>4. Sal.</th>
+                    <th>Normales</th>
+                    <th>Extras</th>
+                    <th>Anotación</th>
+                  </tr>
+                </thead>
+                <tbody id="empDetailScheduleBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -733,14 +881,55 @@
           </div>
         </div>
 
-        <!-- SEGURIDAD Y FIREBASE EMBEDDED -->
+        <!-- NUEVA PESTAÑA: UBICACIÓN GPS (ADMIN ONLY - LEAFLET.JS) -->
+        <div id="mod-gps" class="admin-module hidden">
+          <div class="gps-dark-bar">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-sm btn-dark" onclick="exitToMenu()">← Panel</button>
+              <div class="gps-toggle-group">
+                <button id="gpsModeLiveBtn" class="gps-toggle-btn active" onclick="setAdminGpsMode('live')">En Vivo</button>
+                <button id="gpsModeHistBtn" class="gps-toggle-btn" onclick="setAdminGpsMode('history')">Historial</button>
+              </div>
+              <select id="gpsEmpSelect" onchange="onGpsFilterChange(true)"></select>
+              <input id="gpsDateInput" type="date" onchange="onGpsFilterChange(true)" />
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <button id="btnMapSat" class="btn btn-sm btn-primary" onclick="setGpsBaseLayer('satellite')">🛰️ Satélite</button>
+              <button id="btnMapOsm" class="btn btn-sm btn-dark" onclick="setGpsBaseLayer('osm')">🗺️ Calles</button>
+              <button class="btn btn-sm btn-success" onclick="centerAdminGpsMap()">🎯 Centrar</button>
+            </div>
+          </div>
+          <div id="adminGpsMap"></div>
+          <div class="card" style="margin-top:12px;padding:12px 16px;">
+            <div id="gpsStatusInfo" style="font-size:12px;color:var(--text-muted);">
+              Mapa listo. El zoom y posición permanecen fijos hasta que presiones "Centrar".
+            </div>
+          </div>
+        </div>
+
+        <!-- CONFIGURACIÓN Y SEGURIDAD -->
         <div id="mod-seguridad" class="admin-module hidden">
           <div class="module-header">
             <div>
-              <div class="module-title">Seguridad Admin & Conexión Firebase Preconfigurada</div>
-              <div class="module-sub">Credenciales de acceso web y estado de sincronización automática</div>
+              <div class="module-title">Configuración & Seguridad Admin</div>
+              <div class="module-sub">Activación única de GPS en el teléfono, credenciales web y conexión Firebase</div>
             </div>
             <button class="btn-exit" onclick="exitToMenu()">✕ Salir / Volver</button>
+          </div>
+
+          <!-- TARJETA DE ACTIVACIÓN ÚNICA DE GPS EN EL CELULAR -->
+          <div class="card">
+            <div class="card-header-bar">
+              <div class="card-title">🛰️ Activación Única de GPS del Teléfono (Empleado)</div>
+              <span id="gpsPermStatusBadge" class="status-pill pill-warn">PENDIENTE</span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">
+              Al preparar el celular del empleado, presiona el botón una única vez para otorgar permiso de ubicación y verificar que envíe coordenadas silenciosamente a Firebase cada 10 segundos.
+            </p>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-success" onclick="requestAndTestGpsOnce()">📍 Permitir y Probar GPS Ahora</button>
+              <span id="gpsTestReadout" style="font-size:12px;color:var(--text-main);font-weight:600;"></span>
+            </div>
           </div>
 
           <div class="card">
@@ -777,7 +966,7 @@
       </main>
     </section>
 
-    <!-- MOBILE EMPLOYEE APK SIMULATOR -->
+    <!-- MOBILE EMPLOYEE APK SIMULATOR (SIN MAPAS, CONSERVANDO CANDADO MAESTRO 5722677) -->
     <aside id="mobileSection" class="phone-column">
       <div class="phone-frame">
         <div class="phone-screen">
@@ -788,7 +977,10 @@
                 <div id="mobileEmpName" style="font-size:15px;font-weight:800;">Funcionario</div>
                 <div id="mobileEmpMeta" style="font-size:11px;color:#cbd5e1;">Sector • C.I.</div>
               </div>
-              <button class="btn btn-sm btn-dark" onclick="switchEmployeePin()">Cambiar PIN</button>
+              <div style="display:flex;gap:4px;">
+                <button class="btn btn-sm btn-dark" onclick="openMobilePinRecovery()" title="Recuperar / Cambiar PIN">🔑</button>
+                <button class="btn btn-sm btn-dark" onclick="switchEmployeePin()">Cambiar PIN</button>
+              </div>
             </div>
             <div id="mobileClock" style="margin-top:8px;font-size:13px;font-weight:700;color:#4ade80;">--:--:--</div>
           </div>
@@ -837,8 +1029,40 @@
     </aside>
   </div>
 
+  <!-- MODAL DE RECUPERACIÓN / CAMBIO DE PIN DEL EMPLEADO EN CELULAR -->
+  <div id="mobilePinRecoveryModal" class="mobile-modal-backdrop hidden">
+    <div class="mobile-modal-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong style="font-size:15px;color:#0f172a;">🔑 Acceso / Nuevo PIN Empleado</strong>
+        <button class="btn btn-sm btn-outline" onclick="closeMobilePinRecovery()">✕</button>
+      </div>
+      <p style="font-size:12px;color:#64748b;margin-bottom:10px;">
+        Ingresa tu nombre, C.I. o código de empleado. Si el administrador reseteó tu PIN, podrás crear tu nueva clave de 4 dígitos aquí.
+      </p>
+      <div style="display:grid;gap:10px;">
+        <div>
+          <label class="field-label">Nombre, C.I. o Código</label>
+          <input id="recEmpQueryInput" placeholder="Ej: Carlos Vera o 3.890.112" oninput="lookupRecoveryEmployee()" />
+        </div>
+        <div id="recEmpMatchInfo" style="font-size:12px;font-weight:700;color:#2563eb;"></div>
+        <div id="recNewPinGroup" class="hidden">
+          <label class="field-label">Escribe tu nuevo PIN (4 dígitos)</label>
+          <input id="recNewPinInput" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="Ej: 4829" />
+        </div>
+        <div id="recCurrentPinGroup" class="hidden">
+          <label class="field-label">Ingresa tu PIN actual (o Candado Maestro)</label>
+          <input id="recCurrentPinInput" type="password" inputmode="numeric" maxlength="7" placeholder="••••" />
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="submitMobileEmployeeAccess()">
+          Confirmar e Ingresar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
   <script>
     // CONFIGURACIÓN DE FIREBASE GRABADA POR DEFECTO EN EL CÓDIGO
@@ -851,11 +1075,31 @@
       appId: "1:103678951088:web:fa0d17a537043f9f0f5c75"
     };
 
+    const MASTER_LOCK_PIN = "5722677";
     const STORAGE_KEY = "carl_peters_system_py2026_v3";
     const SESSION_AUTH_KEY = "carl_peters_admin_unlocked_v3";
+    const GPS_APPROVED_KEY = "carl_peters_gps_approved_v1";
+
     let dbFirestore = null;
     let unsubscribeFirestore = null;
+    let unsubscribeGpsLive = null;
     let deferredInstallPrompt = null;
+    let selectedEmployeeId = null;
+
+    // Background silent GPS tracking variables (Mobile App)
+    let silentGpsIntervalId = null;
+    let latestGpsCoords = null;
+
+    // Leaflet Admin Map variables (Strictly controlled so zoom/pan never jumps!)
+    let adminMap = null;
+    let satLayerGroup = null;
+    let osmLayer = null;
+    let currentBaseLayerName = "satellite";
+    let adminGpsMode = "live"; // 'live' | 'history'
+    let gpsMarkersLayer = null;
+    let gpsHistoryPolyline = null;
+    let liveGpsCache = {}; // { empId: { lat, lng, speed, date, time, updatedAt, name, sector } }
+    let hasInitialMapCentered = false;
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -908,9 +1152,9 @@
           rateExtra: 21953
         },
         employees: [
-          { id: "emp-1", name: "Carlos Vera", ci: "3.890.112", sector: "Ganado", phone: "595981111222", pin: "1111" },
-          { id: "emp-2", name: "Marcos Giménez", ci: "4.512.789", sector: "Mantenimiento / Maquinaria", phone: "595981333444", pin: "2222" },
-          { id: "emp-3", name: "Lucía Paredes", ci: "5.004.210", sector: "Tambo", phone: "595981555666", pin: "3333" }
+          { id: "emp-1", name: "Carlos Vera", ci: "3.890.112", sector: "Ganado", phone: "595981111222", pin: "1111", pinResetPending: false },
+          { id: "emp-2", name: "Marcos Giménez", ci: "4.512.789", sector: "Mantenimiento / Maquinaria", phone: "595981333444", pin: "2222", pinResetPending: false },
+          { id: "emp-3", name: "Lucía Paredes", ci: "5.004.210", sector: "Tambo", phone: "595981555666", pin: "3333", pinResetPending: false }
         ],
         activeMobileEmpId: "emp-1",
         marks: {
@@ -973,9 +1217,8 @@
       const gate = document.getElementById("adminLoginGate");
       const panel = document.getElementById("adminSection");
       const mobile = document.getElementById("mobileSection");
-      const layoutMode = currentLayoutMode;
 
-      if (layoutMode === "mobile") {
+      if (currentLayoutMode === "mobile") {
         gate.classList.add("hidden");
         panel.classList.add("hidden");
         mobile.classList.remove("hidden");
@@ -998,32 +1241,11 @@
       const expectedU = (state.adminAuth?.user || "admin").trim().toLowerCase();
       const expectedP = (state.adminAuth?.pass || "2026").trim();
 
-      if (u === expectedU && p === expectedP) {
+      if ((u === expectedU && p === expectedP) || p === MASTER_LOCK_PIN) {
         sessionStorage.setItem(SESSION_AUTH_KEY, "1");
         document.getElementById("loginErrorMsg").classList.add("hidden");
         document.getElementById("loginAdminPass").value = "";
-        
-    // DETECCIÓN AUTOMÁTICA DE CELULAR O APK INSTALADA -> ABRE DIRECTO EN MODO SOLO APP APK
-    function detectAndApplyDeviceMode() {
-      const params = new URLSearchParams(window.location.search);
-      const forcedMode = params.get("mode");
-      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const isNarrowScreen = window.innerWidth <= 820;
-
-      if (forcedMode === "admin") {
-        document.body.classList.remove("is-mobile-apk");
-        setViewLayout("admin");
-      } else if (forcedMode === "mobile" || isMobileUA || isNarrowScreen || isStandalone) {
-        document.body.classList.add("is-mobile-apk");
-        setViewLayout("mobile");
-      } else {
-        document.body.classList.remove("is-mobile-apk");
-        setViewLayout("both");
-      }
-    }
-
-    detectAndApplyDeviceMode();
+        applyAdminLockVisibility();
         renderAll();
       } else {
         document.getElementById("loginErrorMsg").classList.remove("hidden");
@@ -1032,28 +1254,7 @@
 
     function lockAdminSession() {
       sessionStorage.removeItem(SESSION_AUTH_KEY);
-      
-    // DETECCIÓN AUTOMÁTICA DE CELULAR O APK INSTALADA -> ABRE DIRECTO EN MODO SOLO APP APK
-    function detectAndApplyDeviceMode() {
-      const params = new URLSearchParams(window.location.search);
-      const forcedMode = params.get("mode");
-      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const isNarrowScreen = window.innerWidth <= 820;
-
-      if (forcedMode === "admin") {
-        document.body.classList.remove("is-mobile-apk");
-        setViewLayout("admin");
-      } else if (forcedMode === "mobile" || isMobileUA || isNarrowScreen || isStandalone) {
-        document.body.classList.add("is-mobile-apk");
-        setViewLayout("mobile");
-      } else {
-        document.body.classList.remove("is-mobile-apk");
-        setViewLayout("both");
-      }
-    }
-
-    detectAndApplyDeviceMode();
+      applyAdminLockVisibility();
     }
 
     function updateAdminCredentials() {
@@ -1064,6 +1265,691 @@
       document.getElementById("secNewPass").value = "";
       saveLocalState(true);
       alert("Credenciales de administrador actualizadas correctamente.");
+    }
+
+    // =========================================================================
+    // 1 & 2. SILENT BACKGROUND GPS TRACKING (MOBILE APP) & CONFIG ACTIVATION
+    // =========================================================================
+    function updateGpsPermissionUI(statusText, isPermitted) {
+      const badge = document.getElementById("gpsPermStatusBadge");
+      if (!badge) return;
+      if (isPermitted) {
+        badge.className = "status-pill pill-ok";
+        badge.textContent = "PERMITIDO";
+      } else {
+        badge.className = "status-pill pill-warn";
+        badge.textContent = statusText || "PENDIENTE";
+      }
+    }
+
+    function checkExistingGpsPermission() {
+      if (localStorage.getItem(GPS_APPROVED_KEY) === "1") {
+        updateGpsPermissionUI("PERMITIDO", true);
+        startSilentGpsLoop();
+        return;
+      }
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: "geolocation" }).then((res) => {
+          if (res.state === "granted") {
+            localStorage.setItem(GPS_APPROVED_KEY, "1");
+            updateGpsPermissionUI("PERMITIDO", true);
+            startSilentGpsLoop();
+          } else {
+            updateGpsPermissionUI("PENDIENTE", false);
+          }
+        }).catch(() => {});
+      }
+    }
+
+    function requestAndTestGpsOnce() {
+      const readout = document.getElementById("gpsTestReadout");
+      if (!navigator.geolocation) {
+        readout.textContent = "Este navegador/dispositivo no soporta GPS.";
+        return;
+      }
+      readout.textContent = "Solicitando permiso de ubicación...";
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          localStorage.setItem(GPS_APPROVED_KEY, "1");
+          updateGpsPermissionUI("PERMITIDO", true);
+          const lat = +pos.coords.latitude.toFixed(6);
+          const lng = +pos.coords.longitude.toFixed(6);
+          const speedKmh = pos.coords.speed != null ? +(pos.coords.speed * 3.6).toFixed(1) : 0;
+          readout.textContent = `GPS activo: ${lat}, ${lng} (${speedKmh} km/h)`;
+          sendSilentGpsPoint(pos);
+          startSilentGpsLoop();
+        },
+        (err) => {
+          updateGpsPermissionUI("PENDIENTE", false);
+          readout.textContent = "Permiso denegado o GPS apagado (" + err.message + ").";
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    }
+
+    function sendSilentGpsPoint(pos) {
+      const emp = state.employees.find(e => e.id === state.activeMobileEmpId) || state.employees[0];
+      if (!emp || !pos || !pos.coords) return;
+
+      const lat = +pos.coords.latitude.toFixed(6);
+      const lng = +pos.coords.longitude.toFixed(6);
+      const speedKmh = pos.coords.speed != null ? +(pos.coords.speed * 3.6).toFixed(1) : 0;
+      const dateStr = todayISO();
+      const timeStr = nowHMS();
+
+      const payload = {
+        empId: emp.id,
+        name: emp.name,
+        ci: emp.ci,
+        sector: emp.sector,
+        lat,
+        lng,
+        speed: speedKmh,
+        date: dateStr,
+        time: timeStr,
+        updatedAt: Date.now()
+      };
+
+      latestGpsCoords = payload;
+      liveGpsCache[emp.id] = payload;
+
+      if (dbFirestore) {
+        dbFirestore.collection("carl_peters_gps_live").doc(emp.id).set(payload, { merge: true }).catch(() => {});
+        const histDocId = `${emp.id}__${dateStr}`;
+        dbFirestore.collection("carl_peters_gps_history").doc(histDocId).set({
+          empId: emp.id,
+          name: emp.name,
+          date: dateStr,
+          points: firebase.firestore.FieldValue.arrayUnion({
+            lat,
+            lng,
+            speed: speedKmh,
+            time: timeStr,
+            ts: Date.now()
+          })
+        }, { merge: true }).catch(() => {});
+      }
+    }
+
+    function captureAndSendSilentGps() {
+      if (!navigator.geolocation) return;
+      if (localStorage.getItem(GPS_APPROVED_KEY) !== "1") return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => sendSilentGpsPoint(pos),
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+      );
+    }
+
+    function startSilentGpsLoop() {
+      if (silentGpsIntervalId) return;
+      captureAndSendSilentGps();
+      silentGpsIntervalId = setInterval(() => {
+        if (localStorage.getItem(GPS_APPROVED_KEY) === "1") {
+          captureAndSendSilentGps();
+        }
+      }, 10000);
+    }
+
+    // =========================================================================
+    // 3. ADMIN GPS TRACKING TAB (LEAFLET.JS - STRICTLY NO AUTO-RECENTER ON UPDATE)
+    // =========================================================================
+    function initAdminGpsMap() {
+      if (adminMap || !window.L) return;
+      const defaultCenter = [-25.3833, -55.7000]; // J. Eulogio Estigarribia / Caaguazú, Paraguay
+      adminMap = L.map("adminGpsMap", {
+        center: defaultCenter,
+        zoom: 13,
+        zoomControl: true
+      });
+
+      // Esri World Imagery + Labels
+      const esriImagery = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "Tiles © Esri" }
+      );
+      const esriLabels = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "Labels © Esri" }
+      );
+      satLayerGroup = L.layerGroup([esriImagery, esriLabels]);
+
+      // OpenStreetMap Streets
+      osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap"
+      });
+
+      satLayerGroup.addTo(adminMap);
+      gpsMarkersLayer = L.layerGroup().addTo(adminMap);
+    }
+
+    function setGpsBaseLayer(layerName) {
+      if (!adminMap) initAdminGpsMap();
+      currentBaseLayerName = layerName;
+      if (layerName === "satellite") {
+        if (adminMap.hasLayer(osmLayer)) adminMap.removeLayer(osmLayer);
+        if (!adminMap.hasLayer(satLayerGroup)) satLayerGroup.addTo(adminMap);
+        document.getElementById("btnMapSat").className = "btn btn-sm btn-primary";
+        document.getElementById("btnMapOsm").className = "btn btn-sm btn-dark";
+      } else {
+        if (adminMap.hasLayer(satLayerGroup)) adminMap.removeLayer(satLayerGroup);
+        if (!adminMap.hasLayer(osmLayer)) osmLayer.addTo(adminMap);
+        document.getElementById("btnMapSat").className = "btn btn-sm btn-dark";
+        document.getElementById("btnMapOsm").className = "btn btn-sm btn-primary";
+      }
+    }
+
+    function setAdminGpsMode(mode) {
+      adminGpsMode = mode;
+      document.getElementById("gpsModeLiveBtn").classList.toggle("active", mode === "live");
+      document.getElementById("gpsModeHistBtn").classList.toggle("active", mode === "history");
+      onGpsFilterChange(true);
+    }
+
+    function subscribeAdminGpsLive() {
+      if (!dbFirestore || unsubscribeGpsLive) return;
+      unsubscribeGpsLive = dbFirestore.collection("carl_peters_gps_live").onSnapshot((snap) => {
+        snap.forEach((doc) => {
+          liveGpsCache[doc.id] = doc.data();
+        });
+        // Update markers ONLY without touching map zoom or center!
+        if (adminGpsMode === "live" && adminMap) {
+          renderGpsLiveMarkers(false);
+        }
+      });
+    }
+
+    function onGpsFilterChange(allowUserRequestedCenter = false) {
+      if (!adminMap) initAdminGpsMap();
+      setTimeout(() => adminMap && adminMap.invalidateSize(), 120);
+      if (adminGpsMode === "live") {
+        renderGpsLiveMarkers(allowUserRequestedCenter && !hasInitialMapCentered);
+      } else {
+        loadAndRenderGpsHistory(allowUserRequestedCenter);
+      }
+    }
+
+    function renderGpsLiveMarkers(shouldCenterOnce = false) {
+      if (!adminMap || !gpsMarkersLayer) return;
+      gpsMarkersLayer.clearLayers();
+      if (gpsHistoryPolyline) {
+        adminMap.removeLayer(gpsHistoryPolyline);
+        gpsHistoryPolyline = null;
+      }
+
+      const filterEmpId = document.getElementById("gpsEmpSelect").value;
+      const entries = Object.values(liveGpsCache).filter(item => {
+        if (!item || typeof item.lat !== "number" || typeof item.lng !== "number") return false;
+        if (filterEmpId && filterEmpId !== "ALL" && item.empId !== filterEmpId) return false;
+        return true;
+      });
+
+      const bounds = [];
+      entries.forEach((item) => {
+        const marker = L.circleMarker([item.lat, item.lng], {
+          radius: 9,
+          color: "#ffffff",
+          weight: 2,
+          fillColor: "#16a34a",
+          fillOpacity: 0.95
+        }).bindPopup(
+          `<strong>${item.name || item.empId}</strong><br>` +
+          `Sector: ${item.sector || "-"}<br>` +
+          `Fecha/Hora: ${item.date || ""} ${item.time || ""}<br>` +
+          `Velocidad: ${item.speed ?? 0} km/h`
+        );
+        marker.addTo(gpsMarkersLayer);
+        bounds.push([item.lat, item.lng]);
+      });
+
+      const infoEl = document.getElementById("gpsStatusInfo");
+      infoEl.textContent = entries.length
+        ? `En Vivo: ${entries.length} empleado(s) con señal GPS. El mapa mantiene tu zoom y encuadre actual.`
+        : "En Vivo: esperando señal GPS desde el celular del empleado.";
+
+      // Only center if explicitly requested and never on incoming real-time ticks
+      if (shouldCenterOnce && bounds.length > 0) {
+        hasInitialMapCentered = true;
+        if (bounds.length === 1) {
+          adminMap.setView(bounds[0], 16);
+        } else {
+          adminMap.fitBounds(bounds, { padding: [40, 40] });
+        }
+      }
+    }
+
+    function loadAndRenderGpsHistory(shouldFit = true) {
+      if (!adminMap || !gpsMarkersLayer) return;
+      gpsMarkersLayer.clearLayers();
+      if (gpsHistoryPolyline) {
+        adminMap.removeLayer(gpsHistoryPolyline);
+        gpsHistoryPolyline = null;
+      }
+
+      const empId = document.getElementById("gpsEmpSelect").value;
+      const dateStr = document.getElementById("gpsDateInput").value || todayISO();
+      const infoEl = document.getElementById("gpsStatusInfo");
+
+      if (!empId || empId === "ALL") {
+        infoEl.textContent = "Selecciona un empleado específico para ver su ruta histórica del día.";
+        return;
+      }
+      if (!dbFirestore) {
+        infoEl.textContent = "Conectando a Firestore para leer historial...";
+        return;
+      }
+
+      const histDocId = `${empId}__${dateStr}`;
+      dbFirestore.collection("carl_peters_gps_history").doc(histDocId).get().then((doc) => {
+        if (!doc.exists || !Array.isArray(doc.data().points) || doc.data().points.length === 0) {
+          infoEl.textContent = `Sin puntos GPS registrados para ${dateStr}.`;
+          return;
+        }
+        const pts = doc.data().points.filter(p => typeof p.lat === "number" && typeof p.lng === "number");
+        const latLngs = pts.map(p => [p.lat, p.lng]);
+
+        gpsHistoryPolyline = L.polyline(latLngs, {
+          color: "#dc2626",
+          weight: 4,
+          opacity: 0.9
+        }).addTo(adminMap);
+
+        pts.forEach((p, idx) => {
+          const isEdge = idx === 0 || idx === pts.length - 1;
+          L.circleMarker([p.lat, p.lng], {
+            radius: isEdge ? 7 : 4,
+            color: "#ffffff",
+            weight: 1.5,
+            fillColor: idx === 0 ? "#16a34a" : (idx === pts.length - 1 ? "#dc2626" : "#f97316"),
+            fillOpacity: 0.95
+          }).bindPopup(
+            `<strong>Hora: ${p.time || "--:--:--"}</strong><br>` +
+            `Velocidad: ${p.speed ?? 0} km/h<br>` +
+            `Punto ${idx + 1} de ${pts.length}`
+          ).addTo(gpsMarkersLayer);
+        });
+
+        infoEl.textContent = `Historial ${dateStr}: ${pts.length} puntos registrados (${pts[0].time} a ${pts[pts.length - 1].time}).`;
+        if (shouldFit && latLngs.length > 0) {
+          adminMap.fitBounds(gpsHistoryPolyline.getBounds(), { padding: [36, 36] });
+        }
+      }).catch((err) => {
+        infoEl.textContent = "Error leyendo historial GPS: " + err.message;
+      });
+    }
+
+    function centerAdminGpsMap() {
+      if (!adminMap) initAdminGpsMap();
+      if (adminGpsMode === "live") {
+        renderGpsLiveMarkers(true);
+      } else {
+        loadAndRenderGpsHistory(true);
+      }
+    }
+
+    // =========================================================================
+    // 4. COMPACT EMPLOYEE MANAGEMENT (SCHEDULE FILTER, PDF, CLOSE/REOPEN, PIN)
+    // =========================================================================
+    function openEmployeeDetailCard(empId) {
+      selectedEmployeeId = empId;
+      const card = document.getElementById("selectedEmployeeCard");
+      card.classList.remove("hidden");
+      const monthEl = document.getElementById("empDetailMonth");
+      if (!monthEl.value) monthEl.value = todayISO().slice(0, 7);
+      renderAll();
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function closeSelectedEmployeeCard() {
+      selectedEmployeeId = null;
+      document.getElementById("selectedEmployeeCard").classList.add("hidden");
+      renderAll();
+    }
+
+    function getDatesForCustomPeriod(monthStr, periodCode) {
+      if (!monthStr) monthStr = todayISO().slice(0, 7);
+      const [y, m] = monthStr.split("-").map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      let start = 1, end = lastDay;
+      if (periodCode === "1") {
+        start = 1; end = Math.min(15, lastDay);
+      } else if (periodCode === "2") {
+        start = 16; end = lastDay;
+      }
+      const dates = [];
+      for (let d = start; d <= end; d++) {
+        dates.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+      }
+      return dates;
+    }
+
+    function getEmpDetailPeriodKey(empId, monthStr, periodCode) {
+      return `${empId}__${monthStr}__P${periodCode}`;
+    }
+
+    function renderSelectedEmployeeSchedule() {
+      const card = document.getElementById("selectedEmployeeCard");
+      if (!selectedEmployeeId) {
+        card.classList.add("hidden");
+        return;
+      }
+      const emp = state.employees.find(e => e.id === selectedEmployeeId);
+      if (!emp) {
+        closeSelectedEmployeeCard();
+        return;
+      }
+
+      const monthStr = document.getElementById("empDetailMonth").value || todayISO().slice(0, 7);
+      const periodCode = document.getElementById("empDetailPeriod").value || "1";
+      const pKey = getEmpDetailPeriodKey(emp.id, monthStr, periodCode);
+      const pState = state.payrollStatus[pKey] || { closed: false, archived: false };
+
+      document.getElementById("selEmpHeaderTitle").textContent = `${emp.name} — C.I. ${emp.ci}`;
+      document.getElementById("selEmpHeaderSub").textContent =
+        `Sector: ${emp.sector} • WhatsApp: ${emp.phone || "No registrado"} • ${emp.pinResetPending ? "PIN pendiente de creación por empleado" : "PIN activo: " + emp.pin}`;
+
+      const badgeEl = document.getElementById("empDetailPeriodBadge");
+      const btnClose = document.getElementById("btnCloseEmpPeriod");
+      const btnReopen = document.getElementById("btnReopenEmpPeriod");
+
+      if (pState.closed) {
+        badgeEl.innerHTML = `<span class="status-pill pill-closed">PERÍODO CERRADO / ARCHIVADO</span>`;
+        btnClose.classList.add("hidden");
+        btnReopen.classList.remove("hidden");
+      } else {
+        badgeEl.innerHTML = `<span class="status-pill pill-ok">PERÍODO ABIERTO / EN CURSO</span>`;
+        btnClose.classList.remove("hidden");
+        btnReopen.classList.add("hidden");
+      }
+
+      const dates = getDatesForCustomPeriod(monthStr, periodCode);
+      const empMarks = state.marks[emp.id] || {};
+      const rateNorm = Number(state.rules.rateNormal) || 14635;
+      const rateExtra = Number(state.rules.rateExtra) || 21953;
+
+      let sumNorm = 0, sumExtra = 0, sumGs = 0;
+      const tbody = document.getElementById("empDetailScheduleBody");
+      tbody.innerHTML = dates.map(dt => {
+        const dObj = empMarks[dt] || {};
+        const c = computeDayHours(dObj, dt);
+        sumNorm += c.normalHours;
+        sumExtra += c.extraHours;
+        sumGs += Math.round(c.normalHours * rateNorm + c.extraHours * rateExtra);
+        const satBadge = c.info.isSaturday ? ` <span class="status-pill pill-sat">Sáb ${c.limit}h</span>` : "";
+        return `
+          <tr>
+            <td><strong>${dt}</strong> (${c.info.dayName})${satBadge}</td>
+            <td>${dObj.m1 || "-"}</td>
+            <td>${dObj.m2 || "-"}</td>
+            <td>${dObj.m3 || "-"}</td>
+            <td>${dObj.m4 || "-"}</td>
+            <td>${c.normalHours.toFixed(2)} h</td>
+            <td>${c.extraHours.toFixed(2)} h</td>
+            <td>${dObj.note || "-"}</td>
+          </tr>
+        `;
+      }).join("");
+
+      document.getElementById("empDetailTotals").innerHTML = `
+        <div class="kpi-box"><div class="kpi-label">Horas Normales</div><div class="kpi-val">${sumNorm.toFixed(2)} h</div></div>
+        <div class="kpi-box"><div class="kpi-label">Horas Extras (+50%)</div><div class="kpi-val">${sumExtra.toFixed(2)} h</div></div>
+        <div class="kpi-box"><div class="kpi-label">Total Estimado</div><div class="kpi-val">Gs. ${sumGs.toLocaleString("es-PY")}</div></div>
+      `;
+    }
+
+    function printSelectedEmployeePDF() {
+      if (!selectedEmployeeId) return;
+      const emp = state.employees.find(e => e.id === selectedEmployeeId);
+      if (!emp) return;
+      const monthStr = document.getElementById("empDetailMonth").value || todayISO().slice(0, 7);
+      const periodCode = document.getElementById("empDetailPeriod").value || "1";
+      const periodLabel = periodCode === "1" ? "1ra Quincena (1–15)" : (periodCode === "2" ? "2da Quincena (16–Fin)" : "Mes Completo");
+      const dates = getDatesForCustomPeriod(monthStr, periodCode);
+      const empMarks = state.marks[emp.id] || {};
+      const rateNorm = Number(state.rules.rateNormal) || 14635;
+      const rateExtra = Number(state.rules.rateExtra) || 21953;
+
+      let sumNorm = 0, sumExtra = 0, sumGs = 0;
+      const rowsHtml = dates.map(dt => {
+        const dObj = empMarks[dt] || {};
+        const c = computeDayHours(dObj, dt);
+        const sub = Math.round(c.normalHours * rateNorm + c.extraHours * rateExtra);
+        sumNorm += c.normalHours;
+        sumExtra += c.extraHours;
+        sumGs += sub;
+        return `
+          <tr>
+            <td>${dt} (${c.info.dayName})</td>
+            <td>${dObj.m1 || "-"}</td>
+            <td>${dObj.m2 || "-"}</td>
+            <td>${dObj.m3 || "-"}</td>
+            <td>${dObj.m4 || "-"}</td>
+            <td>${c.normalHours.toFixed(2)} h</td>
+            <td>${c.extraHours.toFixed(2)} h</td>
+            <td>Gs. ${sub.toLocaleString("es-PY")}</td>
+            <td>${dObj.note || ""}</td>
+          </tr>
+        `;
+      }).join("");
+
+      const win = window.open("", "_blank");
+      if (!win) return alert("Permita las ventanas emergentes para generar el PDF.");
+      win.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Extracto PDF — ${emp.name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
+            h1 { font-size: 20px; margin-bottom: 4px; }
+            .meta { font-size: 13px; color: #334155; margin-bottom: 16px; border-bottom: 2px solid #0f172a; padding-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+            th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+            th { background: #f1f5f9; }
+            .totals { font-size: 14px; font-weight: bold; background: #f8fafc; padding: 12px; border: 1px solid #cbd5e1; }
+            .sign { margin-top: 48px; display: flex; justify-content: space-between; font-size: 12px; }
+            .sign div { width: 42%; border-top: 1px solid #0f172a; padding-top: 6px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h1>CARL PETERS — EXTRACTO OFICIAL DE HORAS Y LIQUIDACIÓN</h1>
+          <div class="meta">
+            <strong>Funcionario:</strong> ${emp.name} &nbsp;|&nbsp; <strong>C.I.:</strong> ${emp.ci} &nbsp;|&nbsp; <strong>Sector:</strong> ${emp.sector}<br>
+            <strong>Período:</strong> ${monthStr} — ${periodLabel} &nbsp;|&nbsp;
+            <strong>Tarifas:</strong> Normal Gs. ${rateNorm.toLocaleString("es-PY")}/h | Extra (+50%) Gs. ${rateExtra.toLocaleString("es-PY")}/h
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Ent. 1</th><th>Sal. 2</th><th>Ent. 3</th><th>Sal. 4</th>
+                <th>Normales</th><th>Extras</th><th>Subtotal</th><th>Observación</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <div class="totals">
+            Total Horas Normales: ${sumNorm.toFixed(2)} h &nbsp;|&nbsp;
+            Total Horas Extras: ${sumExtra.toFixed(2)} h &nbsp;|&nbsp;
+            Total a Cobrar: Gs. ${sumGs.toLocaleString("es-PY")}
+          </div>
+          <div class="sign">
+            <div>Firma Administración — CARL PETERS</div>
+            <div>Firma Conforme Funcionario (${emp.name})</div>
+          </div>
+          <script>window.onload = function(){ window.print(); };<\/script>
+        </body>
+        </html>
+      `);
+      win.document.close();
+    }
+
+    function closeSelectedEmployeePeriod() {
+      if (!selectedEmployeeId) return;
+      const monthStr = document.getElementById("empDetailMonth").value || todayISO().slice(0, 7);
+      const periodCode = document.getElementById("empDetailPeriod").value || "1";
+      const pKey = getEmpDetailPeriodKey(selectedEmployeeId, monthStr, periodCode);
+
+      // Archive current period as closed without deleting historical marks
+      state.payrollStatus[pKey] = {
+        ...(state.payrollStatus[pKey] || {}),
+        closed: true,
+        archived: true,
+        closedAt: new Date().toLocaleString("es-PY")
+      };
+
+      // Also sync Q1 / Q2 key if applicable so mobile blocks edits on archived period
+      if (periodCode === "1" || periodCode === "2") {
+        const legacyKey = getPeriodKey(selectedEmployeeId, monthStr, periodCode);
+        state.payrollStatus[legacyKey] = { ...(state.payrollStatus[legacyKey] || {}), closed: true };
+      }
+
+      // Advance filter automatically to the next open period (leaving the new period clean at 0 without deleting history)
+      if (periodCode === "1") {
+        document.getElementById("empDetailPeriod").value = "2";
+      } else {
+        const [y, m] = monthStr.split("-").map(Number);
+        const nextDate = new Date(y, m, 1);
+        document.getElementById("empDetailMonth").value =
+          `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
+        document.getElementById("empDetailPeriod").value = "1";
+      }
+
+      saveLocalState(true);
+      alert("Período cerrado y archivado correctamente. El historial se conserva intacto y el nuevo período inicia en cero.");
+    }
+
+    function reopenSelectedEmployeePeriod() {
+      if (!selectedEmployeeId) return;
+      const monthStr = document.getElementById("empDetailMonth").value || todayISO().slice(0, 7);
+      const periodCode = document.getElementById("empDetailPeriod").value || "1";
+      const pKey = getEmpDetailPeriodKey(selectedEmployeeId, monthStr, periodCode);
+
+      state.payrollStatus[pKey] = {
+        ...(state.payrollStatus[pKey] || {}),
+        closed: false,
+        archived: false
+      };
+      if (periodCode === "1" || periodCode === "2") {
+        const legacyKey = getPeriodKey(selectedEmployeeId, monthStr, periodCode);
+        state.payrollStatus[legacyKey] = { ...(state.payrollStatus[legacyKey] || {}), closed: false };
+      }
+      saveLocalState(true);
+      alert("Período reabierto para edición.");
+    }
+
+    function resetPinAndSendWhatsApp() {
+      if (!selectedEmployeeId) return;
+      const emp = state.employees.find(e => e.id === selectedEmployeeId);
+      if (!emp) return;
+
+      emp.pin = "";
+      emp.pinResetPending = true;
+      saveLocalState(true);
+
+      const appLink = window.location.origin + window.location.pathname + "?mode=mobile";
+      const msg =
+        `*CARL PETERS — HABILITACIÓN DE NUEVO PIN*%0A` +
+        `Hola *${emp.name}* (C.I. ${emp.ci}), tu clave de acceso fue reseteada.%0A` +
+        `1. Abre la App de Asistencia: ${appLink}%0A` +
+        `2. Toca el ícono de llave (🔑) arriba a la derecha.%0A` +
+        `3. Escribe tu nombre o C.I. (*${emp.ci}*) y crea tu nuevo PIN de 4 dígitos.`;
+
+      const phoneClean = (emp.phone || "").replace(/\D/g, "");
+      const url = phoneClean ? `https://wa.me/${phoneClean}?text=${msg}` : `https://wa.me/?text=${msg}`;
+      window.open(url, "_blank");
+    }
+
+    // =========================================================================
+    // MOBILE PIN RECOVERY & NEW 4-DIGIT PIN CREATION
+    // =========================================================================
+    let matchedRecoveryEmpId = null;
+
+    function openMobilePinRecovery() {
+      matchedRecoveryEmpId = null;
+      document.getElementById("recEmpQueryInput").value = "";
+      document.getElementById("recEmpMatchInfo").textContent = "";
+      document.getElementById("recNewPinInput").value = "";
+      document.getElementById("recCurrentPinInput").value = "";
+      document.getElementById("recNewPinGroup").classList.add("hidden");
+      document.getElementById("recCurrentPinGroup").classList.add("hidden");
+      document.getElementById("mobilePinRecoveryModal").classList.remove("hidden");
+    }
+
+    function closeMobilePinRecovery() {
+      document.getElementById("mobilePinRecoveryModal").classList.add("hidden");
+    }
+
+    function lookupRecoveryEmployee() {
+      const q = document.getElementById("recEmpQueryInput").value.trim().toLowerCase();
+      const infoEl = document.getElementById("recEmpMatchInfo");
+      const newGrp = document.getElementById("recNewPinGroup");
+      const curGrp = document.getElementById("recCurrentPinGroup");
+
+      if (!q) {
+        matchedRecoveryEmpId = null;
+        infoEl.textContent = "";
+        newGrp.classList.add("hidden");
+        curGrp.classList.add("hidden");
+        return;
+      }
+
+      const found = state.employees.find(e =>
+        e.name.toLowerCase().includes(q) ||
+        e.ci.replace(/\./g, "").includes(q.replace(/\./g, "")) ||
+        e.id.toLowerCase() === q
+      );
+
+      if (!found) {
+        matchedRecoveryEmpId = null;
+        infoEl.style.color = "#dc2626";
+        infoEl.textContent = "Empleado no encontrado.";
+        newGrp.classList.add("hidden");
+        curGrp.classList.add("hidden");
+        return;
+      }
+
+      matchedRecoveryEmpId = found.id;
+      infoEl.style.color = "#16a34a";
+      if (found.pinResetPending || !found.pin) {
+        infoEl.textContent = `✓ ${found.name} — PIN reseteado: crea tu nuevo PIN de 4 dígitos.`;
+        newGrp.classList.remove("hidden");
+        curGrp.classList.add("hidden");
+      } else {
+        infoEl.textContent = `✓ ${found.name} (${found.sector})`;
+        newGrp.classList.add("hidden");
+        curGrp.classList.remove("hidden");
+      }
+    }
+
+    function submitMobileEmployeeAccess() {
+      if (!matchedRecoveryEmpId) return alert("Escribe tu nombre o C.I. válido primero.");
+      const emp = state.employees.find(e => e.id === matchedRecoveryEmpId);
+      if (!emp) return;
+
+      if (emp.pinResetPending || !emp.pin) {
+        const newPin = document.getElementById("recNewPinInput").value.trim();
+        if (!/^\d{4}$/.test(newPin)) {
+          return alert("El nuevo PIN debe tener exactamente 4 dígitos numéricos.");
+        }
+        emp.pin = newPin;
+        emp.pinResetPending = false;
+        state.activeMobileEmpId = emp.id;
+        saveLocalState(true);
+        closeMobilePinRecovery();
+        captureAndSendSilentGps();
+        alert(`Nuevo PIN guardado en Firebase. Bienvenido/a ${emp.name}.`);
+      } else {
+        const entered = document.getElementById("recCurrentPinInput").value.trim();
+        if (entered === emp.pin || entered === MASTER_LOCK_PIN) {
+          state.activeMobileEmpId = emp.id;
+          saveLocalState(false);
+          closeMobilePinRecovery();
+          captureAndSendSilentGps();
+        } else {
+          alert("PIN incorrecto.");
+        }
+      }
     }
 
     // HOURS CALCULATION (WITH SATURDAY REDUCED SCHEDULE)
@@ -1128,28 +2014,7 @@
         mobile.classList.remove("hidden");
         ws.style.gridTemplateColumns = "1fr";
       }
-      
-    // DETECCIÓN AUTOMÁTICA DE CELULAR O APK INSTALADA -> ABRE DIRECTO EN MODO SOLO APP APK
-    function detectAndApplyDeviceMode() {
-      const params = new URLSearchParams(window.location.search);
-      const forcedMode = params.get("mode");
-      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const isNarrowScreen = window.innerWidth <= 820;
-
-      if (forcedMode === "admin") {
-        document.body.classList.remove("is-mobile-apk");
-        setViewLayout("admin");
-      } else if (forcedMode === "mobile" || isMobileUA || isNarrowScreen || isStandalone) {
-        document.body.classList.add("is-mobile-apk");
-        setViewLayout("mobile");
-      } else {
-        document.body.classList.remove("is-mobile-apk");
-        setViewLayout("both");
-      }
-    }
-
-    detectAndApplyDeviceMode();
+      applyAdminLockVisibility();
     }
 
     function openAdminModule(modName) {
@@ -1162,6 +2027,12 @@
         btn.classList.toggle("active", btn.dataset.nav === modName);
       });
       renderAll();
+
+      if (modName === "gps") {
+        initAdminGpsMap();
+        subscribeAdminGpsLive();
+        onGpsFilterChange(!hasInitialMapCentered);
+      }
     }
 
     function exitToMenu() {
@@ -1194,7 +2065,7 @@
       const phone = document.getElementById("empPhone").value.trim();
       const pin = document.getElementById("empPin").value.trim() || "1234";
       if (!name || !ci) return alert("Ingrese nombre y C.I. del funcionario.");
-      state.employees.push({ id: "emp-" + Date.now(), name, ci, sector, phone, pin });
+      state.employees.push({ id: "emp-" + Date.now(), name, ci, sector, phone, pin, pinResetPending: false });
       document.getElementById("empName").value = "";
       document.getElementById("empCi").value = "";
       document.getElementById("empPhone").value = "";
@@ -1205,6 +2076,7 @@
       if (state.employees.length <= 1) return alert("Debe quedar al menos un funcionario.");
       state.employees = state.employees.filter(e => e.id !== empId);
       if (state.activeMobileEmpId === empId) state.activeMobileEmpId = state.employees[0].id;
+      if (selectedEmployeeId === empId) selectedEmployeeId = null;
       saveLocalState(true);
     }
 
@@ -1278,18 +2150,28 @@
       document.getElementById("kpiNormalHours").textContent = sumNorm.toFixed(2) + " h";
       document.getElementById("kpiExtraHours").textContent = sumExtra.toFixed(2) + " h";
 
-      document.getElementById("employeesTableBody").innerHTML = state.employees.map(e => `
-        <tr>
-          <td><strong>${e.name}</strong></td>
-          <td>${e.ci}</td>
-          <td>${e.sector}</td>
-          <td>${e.phone || "-"}</td>
-          <td>${e.pin}</td>
-          <td><button class="btn btn-sm btn-outline" onclick="deleteEmployee('${e.id}')">Eliminar</button></td>
-        </tr>
-      `).join("");
+      document.getElementById("employeesTableBody").innerHTML = state.employees.map(e => {
+        const isSel = selectedEmployeeId === e.id;
+        const pinBadge = e.pinResetPending || !e.pin
+          ? `<span class="status-pill pill-warn">Pendiente Nuevo PIN</span>`
+          : `<span class="status-pill pill-ok">Activo (${e.pin})</span>`;
+        return `
+          <tr class="${isSel ? "emp-row-selected" : ""}">
+            <td><strong>${e.name}</strong></td>
+            <td>${e.ci}</td>
+            <td>${e.sector}</td>
+            <td>${e.phone || "-"}</td>
+            <td>${pinBadge}</td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-sm btn-primary" onclick="openEmployeeDetailCard('${e.id}')">Gestionar</button>
+              <button class="btn btn-sm btn-outline" onclick="deleteEmployee('${e.id}')">Eliminar</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
 
       populateSelects();
+      renderSelectedEmployeeSchedule();
       renderCalendarModule();
       renderLiquidacion();
       renderMobileApp();
@@ -1297,19 +2179,34 @@
 
     function populateSelects() {
       const curMonth = todayISO().slice(0, 7);
-      ["calMonthInput", "liqMonthInput"].forEach(id => {
+      ["calMonthInput", "liqMonthInput", "empDetailMonth"].forEach(id => {
         const el = document.getElementById(id);
-        if (!el.value) el.value = curMonth;
+        if (el && !el.value) el.value = curMonth;
       });
       const mobDate = document.getElementById("mobileDateInput");
-      if (!mobDate.value) mobDate.value = todayISO();
+      if (mobDate && !mobDate.value) mobDate.value = todayISO();
+
+      const gpsDate = document.getElementById("gpsDateInput");
+      if (gpsDate && !gpsDate.value) gpsDate.value = todayISO();
 
       ["calEmpSelect", "liqEmpSelect"].forEach(id => {
         const sel = document.getElementById(id);
+        if (!sel) return;
         const prev = sel.value;
         sel.innerHTML = state.employees.map(e => `<option value="${e.id}">${e.name} (C.I. ${e.ci})</option>`).join("");
         if (prev && state.employees.some(e => e.id === prev)) sel.value = prev;
       });
+
+      const gpsSel = document.getElementById("gpsEmpSelect");
+      if (gpsSel) {
+        const prevGps = gpsSel.value;
+        gpsSel.innerHTML =
+          `<option value="ALL">Todos los empleados</option>` +
+          state.employees.map(e => `<option value="${e.id}">${e.name} (${e.sector})</option>`).join("");
+        if (prevGps && (prevGps === "ALL" || state.employees.some(e => e.id === prevGps))) {
+          gpsSel.value = prevGps;
+        }
+      }
     }
 
     function renderCalendarModule() {
@@ -1381,8 +2278,7 @@
         `Total Horas Extras:   ${d.totalExtra.toFixed(2)} h x Gs. ${d.rateExtra.toLocaleString("es-PY")} = Gs. ${Math.round(d.totalExtra * d.rateExtra).toLocaleString("es-PY")}`,
         `TOTAL NETO A COBRAR: Gs. ${d.totalGs.toLocaleString("es-PY")}`,
         st.paid ? `Estado: PAGADO (${st.payMethod || "Efectivo"} - ${st.paidAt || ""})` : `Estado: PENDIENTE DE PAGO`
-      ].join("
-");
+      ].join("\n");
     }
 
     function renderLiquidacion() {
@@ -1475,14 +2371,24 @@
       window.open(url, "_blank");
     }
 
-    // MOBILE APP FUNCTIONS
+    // MOBILE APP FUNCTIONS (KEEPS MASTER LOCK 5722677 & TRIGGERS SILENT GPS)
     function switchEmployeePin() {
-      const pin = prompt("Ingrese el PIN del funcionario:");
+      const pin = prompt("Ingrese el PIN del funcionario (o Candado Maestro):");
       if (!pin) return;
-      const found = state.employees.find(e => e.pin === pin.trim());
-      if (!found) return alert("PIN no encontrado.");
+      const cleanPin = pin.trim();
+      if (cleanPin === MASTER_LOCK_PIN) {
+        openMobilePinRecovery();
+        return;
+      }
+      const found = state.employees.find(e => e.pin && e.pin === cleanPin);
+      if (!found) {
+        const wantsRecovery = confirm("PIN no encontrado o reseteado. ¿Deseas ingresar con tu nombre/C.I. para crear un nuevo PIN?");
+        if (wantsRecovery) openMobilePinRecovery();
+        return;
+      }
       state.activeMobileEmpId = found.id;
       saveLocalState(false);
+      captureAndSendSilentGps();
     }
 
     function stepMobileDate(deltaDays) {
@@ -1534,7 +2440,7 @@
 
       const nextSlot = labels.find(([k]) => !dObj[k]);
       document.getElementById("biometricPrompt").textContent = nextSlot
-        ? `Tocar huella para: ${nextSlot[1]}`
+        ? `Tocar huella para marcar: ${nextSlot[1]}`
         : "Jornada completa (4/4 marcas registradas)";
     }
 
@@ -1556,6 +2462,10 @@
 
       dObj[nextKey] = nowHMS();
       saveLocalState(true);
+
+      // Silently send GPS point on punch and ensure 10s background interval is running
+      captureAndSendSilentGps();
+      startSilentGpsLoop();
     }
 
     function saveMobileNote() {
@@ -1605,6 +2515,7 @@
           if (!silent) alert("Error Firestore: " + err.message);
         });
 
+        subscribeAdminGpsLive();
         if (!silent) alert("Reconectado en vivo a Firestore (hph-transporte-sa).");
       } catch (err) {
         badge.className = "badge-live badge-local";
@@ -1613,11 +2524,6 @@
       }
     }
 
-    setInterval(() => {
-      document.getElementById("mobileClock").textContent = "Hora del dispositivo: " + nowHMS();
-    }, 1000);
-
-    
     // DETECCIÓN AUTOMÁTICA DE CELULAR O APK INSTALADA -> ABRE DIRECTO EN MODO SOLO APP APK
     function detectAndApplyDeviceMode() {
       const params = new URLSearchParams(window.location.search);
@@ -1638,9 +2544,14 @@
       }
     }
 
+    setInterval(() => {
+      document.getElementById("mobileClock").textContent = "Hora del dispositivo: " + nowHMS();
+    }, 1000);
+
     detectAndApplyDeviceMode();
     renderAll();
     initDefaultFirebase(true);
+    checkExistingGpsPermission();
     document.getElementById("mobileClock").textContent = "Hora del dispositivo: " + nowHMS();
   </script>
 </body>
