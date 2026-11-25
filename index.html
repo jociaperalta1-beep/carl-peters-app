@@ -230,3 +230,24 @@ body.mob-only .screen{border-radius:0!important;min-height:100vh!important;flex:
   </aside>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script type="module">
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, onSnapshot, arrayUnion } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const FB_CFG = {
+  apiKey: "AIzaSyD4fJDNXbXmb0Q1UtG7kjdjKuzmaWYRfvc",
+  authDomain: "hph-transporte-sa.firebaseapp.com",
+  projectId: "hph-transporte-sa",
+  storageBucket: "hph-transporte-sa.firebasestorage.app",
+  messagingSenderId: "103678951088",
+  appId: "1:103678951088:web:fa0d17a537043f9f0f5c75"
+};
+const DB_ID = "ai-studio-hphtransportesa-fe2bfdd1-bf5d-48bd-91cc-00a1a85dae07";
+const MASTER_PIN = "5722677", CACHE_KEY = "cp_py26_cache", MOB_KEY = "cp_py26_mob_id", GPS_KEY = "cp_py26_gps_ok", ADM_KEY = "cp_py26_adm_ok";
+
+let db = null, editId = null, gpsTimer = null, map = null, satGrp = null, osmLay = null, mkLay = null, poly = null, gpsMode = "live", gpsLive = {}, centeredOnce = false, fbConnected = false;
+let state = JSON.parse(localStorage.getItem(CACHE_KEY) || "null") || { companyLogo: "", rules: { wd: 8, sat: 4 }, employees: [], marks: {} };
+
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+const nowT = () => new Date().toTimeString().slice(0, 8);
+const toSec = t => { if (!t || !/^\d{2}:\d{2}:\d{2}$/.test(t)) return null; const [h,m,s] = t.split(":").map(Number); return h
