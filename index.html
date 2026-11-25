@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CARL PETERS — Asistencia & Nómina PY 2026</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <style>
+    :root { --bg:#f1f5f9; --card:#fff; --side:#0f172a; --pri:#0f172a; --acc:#2563eb; --ok:#16a34a; --warn:#d97706; --err:#dc2626; --mut:#64748b; --bdr:#e2e8f0; }
+    * { box-sizing:border-box; margin:0; padding:0; font-family:system-ui,-apple-system,sans-serif; }
+    body { background:var(--bg); color:var(--pri); font-size:14px; }
+    .hidden { display:none !important; }
+    .btn { border:none; border-radius:8px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+    .btn-pri { background:var(--acc); color:#fff; }
+    .btn-ok { background:var(--ok); color:#fff; }
+    .btn-warn { background:var(--warn); color:#fff; }
+    .btn-err { background:var(--err); color:#fff; }
+    .btn-dark { background:#1e293b; color:#fff; }
+    .btn-out { background:#fff; color:var(--pri); border:1px solid var(--bdr); }
+    .topbar { background:#090d16; color:#fff; padding:10px 16px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; position:sticky; top:0; z-index:60; }
+    .brand { display:flex; align-items:center; gap:8px; font-weight:800; font-size:15px; }
+    .logo-img { height:28px; max-width:96px; object-fit:contain; background:#fff; border-radius:6px; padding:2px; }
+    .badge-on { background:rgba(22,163,74,.2); color:#4ade80; border:1px solid rgba(74,222,128,.4); padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+    .badge-off { background:rgba(217,119,6,.2); color:#fbbf24; border:1px solid rgba(251,191,36,.4); padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+    .ws { display:grid; grid-template-columns:1fr 380px; min-height:calc(100vh - 48px); }
+    @media (max-width:1100px) { .ws { grid-template-columns:1fr; } }
+    .lock-wrap { flex:1; display:flex; align-items:center; justify-content:center; padding:24px; background:#0f172a; min-height:calc(100vh - 48px); }
+    .lock-box { background:#fff; border-radius:14px; padding:22px; width:100%; max-width:360px; display:grid; gap:10px; }
+    .admin-wrap { display:flex; min-height:100%; }
+    .side { width:215px; background:var(--side); color:#cbd5e1; padding:12px 10px; display:flex; flex-direction:column; gap:5px; flex-shrink:0; }
+    @media (max-width:780px) { .admin-wrap { flex-direction:column; } .side { width:100%; flex-direction:row; flex-wrap:wrap; } }
+    .nav { width:100%; text-align:left; background:transparent; color:#cbd5e1; border:none; padding:9px 11px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:700; }
+    @media (max-width:780px) { .nav { width:auto; } }
+    .nav.active, .nav:hover { background:var(--acc); color:#fff; }
+    .main { flex:1; padding:16px; overflow-x:auto; }
+    .card { background:var(--card); border:1px solid var(--bdr); border-radius:12px; padding:14px; margin-bottom:12px; }
+    .card-top { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--bdr); }
+    .grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; }
+    .grid-4 { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+    label { display:block; font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; }
+    input, select { width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; background:#fff; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th, td { padding:8px; border-bottom:1px solid var(--bdr); text-align:left; }
+    th { background:#f8fafc; }
+    .gps-bar { background:#0f172a; color:#fff; padding:8px 12px; border-radius:12px 12px 0 0; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px; }
+    .gps-bar select, .gps-bar input { background:#1e293b; color:#fff; border:1px solid #334155; width:auto; padding:5px 8px; font-size:12px; }
+    #gpsMap { width:100%; height:calc(100vh - 130px); border-radius:0 0 12px 12px; border:1px solid var(--bdr); z-index:1; }
+    /* MOBILE APK */
+    .mob-col { background:#e2e8f0; padding:14px; display:flex; justify-content:center; border-left:1px solid #cbd5e1; }
+    .phone { width:100%; max-width:356px; background:#0f172a; border-radius:30px; padding:10px; }
+    .screen { position:relative; background:#f8fafc; border-radius:22px; overflow:hidden; min-height:650px; display:flex; flex-direction:column; }
+    .lock-ico { position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%; border:1px solid rgba(255,255,255,.2); background:rgba(15,23,42,.65); color:#fff; font-size:14px; cursor:pointer; z-index:25; }
+    .mob-head { background:#0f172a; color:#fff; padding:12px 48px 12px 12px; }
+    .mob-body { padding:10px; display:flex; flex-direction:column; gap:8px; flex:1; }
+    .mob-auth { padding:14px; display:flex; flex-direction:column; gap:10px; flex:1; background:linear-gradient(180deg,#0f172a 0%,#1e293b 32%,#f8fafc 32.2%); }
+    .tabs-2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#e2e8f0; padding:3px; border-radius:8px; }
+    .tab-btn { border:none; background:transparent; padding:7px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; }
+    .tab-btn.active { background:var(--acc); color:#fff; }
+    .fp-zone { margin-top:auto; background:#fff; border:1px solid var(--bdr); border-radius:14px; padding:12px; text-align:center; }
+    .fp-btn { width:82px; height:82px; border-radius:50%; border:3px solid var(--acc); background:#0f172a; color:#38bdf8; font-size:30px; margin:8px auto; display:flex; align-items:center; justify-content:center; cursor:pointer; touch-action:manipulation; }
+    .fp-btn.scan { border-color:var(--ok); color:#4ade80; transform:scale(.95); }
+    @media (max-width:900px) { .topbar, #adminLock, #adminPanel { display:none !important; } .ws { grid-template-columns:1fr !important; min-height:100vh !important; } }
+    body.mob-only .topbar, body.mob-only #adminLock, body.mob-only #adminPanel { display:none !important; }
+    body.mob-only .ws { grid-template-columns:1fr !important; min-height:100vh !important; }
+    body.mob-only .mob-col { padding:0 !important; background:#f8fafc !important; border:none !important; min-height:100vh !important; }
+    body.mob-only .phone { max-width:100% !important; border-radius:0 !important; padding:0 !important; flex:1; display:flex; }
+    body.mob-only .screen { border-radius:0 !important; min-height:100vh !important; flex:1; }
+    @media print { .topbar, .side, .mob-col, .no-print { display:none !important; } .ws { display:block; } }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <img id="topLogo" class="logo-img hidden" alt="Logo" />
+      <span>CARL PETERS</span>
+      <span id="fbBadge" class="badge-off">Conectando a Firestore...</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn btn-out" onclick="setLayout('both')">Split Web + APK</button>
+      <button class="btn btn-out" onclick="setLayout('admin')">Solo Admin</button>
+      <button class="btn btn-out" onclick="setLayout('mobile')">Solo APK</button>
+    </div>
+  </div>
+
+  <div id="ws" class="ws">
+    <section id="adminLock" class="lock-wrap">
+      <form class="lock-box" onsubmit="loginAdmin(event)">
+        <h3 style="font-weight:800;">CARL PETERS — Admin</h3>
+        <div><label>Usuario</label><input id="admUser" value="admin" required /></div>
+        <div><label>Clave / PIN</label><input id="admPass" type="password" placeholder="2026 o 5722677" required /></div>
+        <button class="btn btn-pri" type="submit" style="justify-content:center;padding:10px;">Entrar</button>
+      </form>
+    </section>
+
+    <section id="adminPanel" class="admin-wrap hidden">
+      <aside class="side">
+        <button class="nav active" data-tab="hoy" onclick="openTab('hoy')">🕒 Asistencia Hoy</button>
+        <button class="nav" data-tab="rrhh" onclick="openTab('rrhh')">👥 RRHH & Empleados</button>
+        <button class="nav" data-tab="cal" onclick="openTab('cal')">📅 Calendario & PDF</button>
+        <button class="nav" data-tab="gps" onclick="openTab('gps')">🛰️ Ubicación GPS</button>
+        <button class="nav" data-tab="cfg" onclick="openTab('cfg')">⚙️ Configuración</button>
+        <button class="nav" style="margin-top:auto;color:#fca5a5;" onclick="logoutAdmin()">🔒 Salir</button>
+      </aside>
+
+      <main class="main">
+        <div id="tab-hoy" class="adm-tab">
+          <div class="card">
+            <div class="card-top"><strong>Asistencia Hoy (Tiempo Real)</strong><span id="hoyCount" style="font-size:12px;color:var(--mut);"></span></div>
+            <table>
+              <thead><tr><th>Empleado</th><th>C.I.</th><th>Sector</th><th>Ent. 1</th><th>Sal. 2</th><th>Ent. 3</th><th>Sal. 4</th><th>Normales</th><th>Extras</th></tr></thead>
+              <tbody id="hoyBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-rrhh" class="adm-tab hidden">
+          <div class="card">
+            <div class="card-top"><strong>Registrar Funcionario</strong></div>
+            <div class="grid-4">
+              <div><label>Nombre</label><input id="newEmpName" placeholder="Nombre y Apellido" /></div>
+              <div><label>C.I.</label><input id="newEmpCi" placeholder="4.123.456" /></div>
+              <div><label>Sector</label><input id="newEmpSec" value="Ganado" /></div>
+              <div><label>PIN (4 dígitos)</label><input id="newEmpPin" maxlength="4" value="1234" /></div>
+            </div>
+            <div style="margin-top:8px;display:flex;justify-content:flex-end;"><button class="btn btn-pri" onclick="saveNewEmployee()">+ Guardar</button></div>
+          </div>
+          <div class="card">
+            <div class="card-top"><strong>Empleados Registrados</strong></div>
+            <table>
+              <thead><tr><th>Nombre</th><th>C.I.</th><th>Sector</th><th>PIN</th><th>Acciones</th></tr></thead>
+              <tbody id="empBody"></tbody>
+            </table>
+            <div id="empEditBox" class="card hidden" style="margin-top:12px;background:#f8fafc;">
+              <div class="card-top"><strong id="editTitle">Editar Empleado</strong><button class="btn btn-err" onclick="closeEmpEdit()">✕</button></div>
+              <div class="grid-4">
+                <div><label>Nombre</label><input id="edName" /></div>
+                <div><label>C.I.</label><input id="edCi" /></div>
+                <div><label>Sector</label><input id="edSec" /></div>
+                <div><label>PIN (4 dígitos)</label><input id="edPin" maxlength="4" /></div>
+              </div>
+              <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-ok" onclick="applyEmpEdit()">Guardar Cambios</button>
+                <button class="btn btn-warn" onclick="resetEmpPin()">Resetear PIN</button>
+                <button class="btn btn-err" onclick="deleteEmp()">Eliminar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-cal" class="adm-tab hidden">
+          <div class="card">
+            <div class="card-top"><strong>Calendario, Quincena & PDF</strong><button class="btn btn-dark no-print" onclick="window.print()">🖨️ Imprimir / PDF</button></div>
+            <div class="grid-3" style="margin-bottom:10px;">
+              <div><label>Empleado</label><select id="calEmp" onchange="renderCal()"></select></div>
+              <div><label>Mes</label><input id="calMonth" type="month" onchange="renderCal()" /></div>
+              <div><label>Período</label><select id="calPer" onchange="renderCal()"><option value="1">1ra Quincena (1–15)</option><option value="2">2da Quincena (16–Fin)</option><option value="ALL">Mes Completo</option></select></div>
+            </div>
+            <div id="calSummary" style="font-weight:700;margin-bottom:8px;"></div>
+            <table>
+              <thead><tr><th>Fecha</th><th>Ent. 1</th><th>Sal. 2</th><th>Ent. 3</th><th>Sal. 4</th><th>Normales</th><th>Extras</th><th>Total</th></tr></thead>
+              <tbody id="calBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-gps" class="adm-tab hidden">
+          <div class="gps-bar">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <button class="btn btn-dark" onclick="openTab('hoy')">← Panel</button>
+              <button id="mLive" class="btn btn-pri" onclick="setGpsMode('live')">En Vivo</button>
+              <button id="mHist" class="btn btn-dark" onclick="setGpsMode('hist')">Historial</button>
+              <select id="gpsEmp" onchange="refreshGps(false)"></select>
+              <input id="gpsDate" type="date" onchange="refreshGps(true)" />
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-pri" onclick="setMapLayer('sat')">Satélite</button>
+              <button class="btn btn-dark" onclick="setMapLayer('osm')">Calles</button>
+              <button class="btn btn-ok" onclick="centerGps()">Centrar</button>
+            </div>
+          </div>
+          <div id="gpsMap"></div>
+        </div>
+
+        <div id="tab-cfg" class="adm-tab hidden">
+          <div class="card">
+            <div class="card-top"><strong>Logo de la Empresa (Firestore)</strong></div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <img id="cfgLogo" src="./icon-192.png" class="logo-img" style="height:48px;max-width:120px;" alt="Logo" />
+              <input type="file" accept="image/*" style="width:auto;" onchange="uploadLogo(event)" />
+              <button class="btn btn-out" onclick="clearLogo()">Quitar Logo</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-top"><strong>Jornada y Reinicio de Base</strong></div>
+            <div class="grid-3" style="margin-bottom:10px;">
+              <div><label>Horas Normales Lun–Vie</label><input id="cfgWd" type="number" step="0.5" value="8" onchange="saveRules()" /></div>
+              <div><label>Horas Normales Sábado</label><input id="cfgSat" type="number" step="0.5" value="4" onchange="saveRules()" /></div>
+              <div><label>GPS Celular</label><button class="btn btn-ok" onclick="enableGpsOnce()">📍 Permitir y Probar GPS</button></div>
+            </div>
+            <button class="btn btn-err" onclick="wipeAllData()">🗑️ Limpiar Datos de Ejemplo / Reiniciar Base</button>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <aside id="mobCol" class="mob-col">
+      <div class="phone">
+        <div class="screen">
+          <button type="button" class="lock-ico" onclick="unlockAdminPin()">🔒</button>
+
+          <div id="mobAuth" class="mob-auth">
+            <div style="text-align:center;color:#fff;padding:8px 0;">
+              <img id="mobAuthLogo" src="./icon-192.png" style="width:54px;height:54px;object-fit:contain;background:#fff;border-radius:12px;padding:3px;margin:0 auto 6px;display:block;" alt="Logo" />
+              <div style="font-weight:800;font-size:16px;">CARL PETERS</div>
+            </div>
+            <div class="card" style="margin:0;">
+              <div class="tabs-2" style="margin-bottom:10px;">
+                <button type="button" id="tLog" class="tab-btn active" onclick="setAuthTab('login')">Ingresar</button>
+                <button type="button" id="tReg" class="tab-btn" onclick="setAuthTab('reg')">Registrarme</button>
+              </div>
+              <form id="fLogin" onsubmit="mobLogin(event)" style="display:grid;gap:8px;">
+                <div><label>Nombre o C.I.</label><input id="lId" list="empList" required /></div>
+                <div><label>PIN (4 dígitos)</label><input id="lPin" type="password" inputmode="numeric" maxlength="7" required /></div>
+                <button type="submit" class="btn btn-pri" style="justify-content:center;padding:10px;">Entrar a Marcar Hora</button>
+                <button type="button" class="btn btn-out" style="justify-content:center;" onclick="mobResetPin()">🔑 Olvidé o Resetearon mi PIN</button>
+              </form>
+              <form id="fReg" class="hidden" onsubmit="mobRegister(event)" style="display:grid;gap:8px;">
+                <div><label>Nombre Completo</label><input id="rName" required /></div>
+                <div><label>C.I.</label><input id="rCi" required /></div>
+                <div><label>Sector / Cargo</label><input id="rSec" value="Ganado" required /></div>
+                <div><label>PIN (4 dígitos)</label><input id="rPin" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" required /></div>
+                <button type="submit" class="btn btn-pri" style="justify-content:center;padding:10px;">Crear Cuenta y Entrar</button>
+              </form>
+              <datalist id="empList"></datalist>
+            </div>
+          </div>
+
+          <div id="mobApp" class="hidden" style="display:flex;flex-direction:column;flex:1;">
+            <div class="mob-head">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <img id="mobHeadLogo" class="logo-img hidden" alt="Logo" />
+                  <div><div id="mName" style="font-weight:800;font-size:14px;"></div><div id="mMeta" style="font-size:11px;color:#cbd5e1;"></div></div>
+                </div>
+                <button type="button" class="btn btn-err" onclick="mobLogout()">Salir / Cambiar</button>
+              </div>
+              <div id="mClock" style="margin-top:6px;font-size:12px;font-weight:700;color:#4ade80;">--:--:--</div>
+            </div>
+            <div class="mob-body">
+              <div class="tabs-2">
+                <button type="button" id="subPunchBtn" class="tab-btn active" onclick="setMobSub('punch')">☝ Marcar Hora</button>
+                <button type="button" id="subHoursBtn" class="tab-btn" onclick="setMobSub('hours')">📊 Mis Horas</button>
+              </div>
+
+              <div id="subPunch" style="display:flex;flex-direction:column;gap:8px;flex:1;">
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <button type="button" class="btn btn-out" onclick="shiftMobDate(-1)">◀</button>
+                  <input id="mDate" type="date" onchange="renderMob()" />
+                  <button type="button" class="btn btn-out" onclick="shiftMobDate(1)">▶</button>
+                </div>
+                <div class="grid-3" style="grid-template-columns:1fr 1fr;">
+                  <div class="card" style="margin:0;padding:8px;text-align:center;"><div id="mNorm" style="font-weight:800;">00h 00m 00s</div><span style="font-size:11px;color:var(--mut);">Normales</span></div>
+                  <div class="card" style="margin:0;padding:8px;text-align:center;"><div id="mExt" style="font-weight:800;color:var(--acc);">00h 00m 00s</div><span style="font-size:11px;color:var(--mut);">Extras</span></div>
+                </div>
+                <div id="mMarks" class="card" style="margin:0;padding:10px;font-size:12px;display:grid;gap:4px;"></div>
+                <div class="fp-zone">
+                  <div id="fpLbl" style="font-size:12px;font-weight:700;">Tocar huella para marcar</div>
+                  <button type="button" id="fpBtn" class="fp-btn" onpointerdown="fpDown()" onpointerup="fpUp()" onpointerleave="fpCancel()">☝</button>
+                  <div id="fpMsg" style="font-size:11px;color:var(--mut);">GPS activo cada 10s</div>
+                </div>
+              </div>
+
+              <div id="subHours" class="hidden" style="display:flex;flex-direction:column;gap:8px;flex:1;">
+                <div class="grid-3" style="grid-template-columns:1fr 1fr;">
+                  <div><label>Período</label><select id="hRange" onchange="renderMobHours()"><option value="WEEK">Semana</option><option value="1">1ra Quincena</option><option value="2">2da Quincena</option><option value="ALL">Mes</option></select></div>
+                  <div><label>Mes</label><input id="hMonth" type="month" onchange="renderMobHours()" /></div>
+                </div>
+                <div class="grid-3">
+                  <div class="card" style="margin:0;padding:8px;text-align:center;"><div id="hNorm" style="font-weight:800;font-size:12px;">00h 00m 00s</div><span style="font-size:10px;">Normales</span></div>
+                  <div class="card" style="margin:0;padding:8px;text-align:center;"><div id="hExt" style="font-weight:800;font-size:12px;color:var(--acc);">00h 00m 00s</div><span style="font-size:10px;">Extras</span></div>
+                  <div class="card" style="margin:0;padding:8px;text-align:center;"><div id="hTot" style="font-weight:800;font-size:12px;color:var(--ok);">00h 00m 00s</div><span style="font-size:10px;">Total</span></div>
+                </div>
+                <div id="hList" style="display:grid;gap:6px;max-height:330px;overflow-y:auto;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const FB_CFG = {
+      apiKey: "AIzaSyD4fJDNXbXmb0Q1UtG7kjdjKuzmaWYRfvc",
+      authDomain: "hph-transporte-sa.firebaseapp.com",
+      projectId: "hph-transporte-sa",
+      storageBucket: "hph-transporte-sa.firebasestorage.app",
+      messagingSenderId: "103678951088",
+      appId: "1:103678951088:web:fa0d17a537043f9f0f5c75"
+    };
+    const MASTER_PIN = "5722677";
+    const CACHE_KEY = "cp_py26_cache";
+    const MOB_KEY = "cp_py26_mob_id";
+    const GPS_KEY = "cp_py26_gps_ok";
+
+    let db = null, editId = null, gpsTimer = null, map = null, satGrp = null, osmLay = null, mkLay = null, poly = null, gpsMode = "live", gpsLive = {}, centeredOnce = false;
+    let state = JSON.parse(localStorage.getItem(CACHE_KEY) || "null") || { companyLogo: "", rules: { wd: 8, sat: 4 }, employees: [], marks: {} };
+
+    const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+    const nowT = () => new Date().toTimeString().slice(0, 8);
+    const toSec = (t) => { if (!t || !/^\d{2}:\d{2}:\d{2}$/.test(t)) return null; const [h,m,s] = t.split(":").map(Number); return h*3600+m*60+s; };
+    const fmtHMS = (sec) => { const s = Math.max(0, Math.floor(sec||0)); return `${String(Math.floor(s/3600)).padStart(2,"0")}h ${String(Math.floor((s%3600)/60)).padStart(2,"0")}m ${String(s%60).padStart(2,"0")}s`; };
+    const isSat = (dt) => new Date(dt + "T12:00:00").getDay() === 6;
+
+    function calcDay(obj, dt, live = true) {
+      const lim = (isSat(dt) ? Number(state.rules.sat ?? 4) : Number(state.rules.wd ?? 8)) * 3600;
+      if (!obj) return { sec:0, norm:0, ext:0, run:false };
+      let sec = 0, run = false;
+      const nSec = (live && dt === today()) ? toSec(nowT()) : null;
+      const s1 = toSec(obj.m1), s2 = toSec(obj.m2), s3 = toSec(obj.m3), s4 = toSec(obj.m4);
+      if (s1 !== null) { if (s2 !== null && s2 >= s1) sec += s2 - s1; else if (s2 === null && nSec !== null && nSec >= s1) { sec += nSec - s1; run = true; } }
+      if (s3 !== null) { if (s4 !== null && s4 >= s3) sec += s4 - s3; else if (s4 === null && nSec !== null && nSec >= s3) { sec += nSec - s3; run = true; } }
+      return { sec, norm: Math.min(sec, lim), ext: Math.max(0, sec - lim), run };
+    }
+
+    function persist(push = true) {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(state));
+      renderAll();
+      if (push && db) db.collection("carl_peters").doc("system_state_2026").set(state, { merge: true }).catch(() => {});
+    }
+
+    function initFB() {
+      const badge = document.getElementById("fbBadge");
+      try {
+        const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(FB_CFG);
+        db = app.firestore();
+        db.collection("carl_peters").doc("system_state_2026").onSnapshot((snap) => {
+          badge.className = "badge-on"; badge.textContent = "En Vivo (hph-transporte-sa)";
+          if (snap.exists) { state = { companyLogo:"", rules:{wd:8,sat:4}, employees:[], marks:{}, ...snap.data() }; localStorage.setItem(CACHE_KEY, JSON.stringify(state)); renderAll(); }
+          else snap.ref.set(state, { merge: true }).catch(() => {});
+        }, () => { badge.className = "badge-off"; badge.textContent = "Modo Local"; });
+        db.collection("carl_peters_gps_live").onSnapshot((snap) => {
+          gpsLive = {}; snap.forEach(d => gpsLive[d.id] = d.data());
+          if (gpsMode === "live" && map) drawGpsLive(false);
+        }, () => {});
+      } catch { badge.className = "badge-off"; badge.textContent = "Modo Local"; }
+    }
+
+    function setLayout(m) {
+      const mode = m || (window.innerWidth > 900 ? "admin" : "mobile");
+      const isMob = mode === "mobile" || window.innerWidth < 900 || window.matchMedia("(display-mode:standalone)").matches;
+      document.body.classList.toggle("mob-only", isMob);
+      document.getElementById("mobCol").classList.toggle("hidden", mode === "admin" && !isMob);
+      document.getElementById("ws").style.gridTemplateColumns = (mode === "admin" || isMob) ? "1fr" : "";
+      if (map) setTimeout(() => map.invalidateSize(), 120);
+    }
+
+    function loginAdmin(e) {
+      e.preventDefault();
+      const u = document.getElementById("admUser").value.trim().toLowerCase();
+      const p = document.getElementById("admPass").value.trim();
+      if ((u === "admin" && p === "2026") || p === MASTER_PIN) {
+        sessionStorage.setItem("cp_adm_ok", "1");
+        document.getElementById("adminLock").classList.add("hidden");
+        document.getElementById("adminPanel").classList.remove("hidden");
+        renderAll();
+      } else alert("Credenciales incorrectas.");
+    }
+    function logoutAdmin() { sessionStorage.removeItem("cp_adm_ok"); location.reload(); }
+    function unlockAdminPin() {
+      const p = prompt("PIN maestro:");
+      if (p && p.trim() === MASTER_PIN) {
+        sessionStorage.setItem("cp_adm_ok", "1");
+        document.body.classList.remove("mob-only");
+        document.getElementById("adminLock").classList.add("hidden");
+        document.getElementById("mobCol").classList.add("hidden");
+        document.getElementById("adminPanel").classList.remove("hidden");
+        document.getElementById("ws").style.gridTemplateColumns = "1fr";
+        renderAll();
+      }
+    }
+
+    function openTab(t) {
+      document.querySelectorAll(".adm-tab").forEach(el => el.classList.toggle("hidden", el.id !== "tab-" + t));
+      document.querySelectorAll(".nav").forEach(b => b.classList.toggle("active", b.dataset.tab === t));
+      renderAll();
+      if (t === "gps") { initMap(); setTimeout(() => map && map.invalidateSize(), 50); refreshGps(!centeredOnce); }
+    }
+
+    function saveNewEmployee() {
+      const name = document.getElementById("newEmpName").value.trim(), ci = document.getElementById("newEmpCi").value.trim(), sec = document.getElementById("newEmpSec").value.trim() || "Ganado", pin = document.getElementById("newEmpPin").value.trim();
+      if (!name || !ci || !/^\d{4}$/.test(pin)) return alert("Complete Nombre, C.I. y PIN de 4 dígitos.");
+      const emp = { id: "emp-" + Date.now(), name, ci, sector: sec, pin };
+      state.employees.push(emp);
+      if (db) db.collection("carl_peters_employees").doc(emp.id).set(emp, { merge: true }).catch(() => {});
+      document.getElementById("newEmpName").value = ""; document.getElementById("newEmpCi").value = "";
+      persist(true);
+    }
+
+    function openEmpEdit(id) {
+      editId = id; const e = state.employees.find(x => x.id === id); if (!e) return;
+      document.getElementById("edName").value = e.name; document.getElementById("edCi").value = e.ci; document.getElementById("edSec").value = e.sector; document.getElementById("edPin").value = e.pin || "";
+      document.getElementById("empEditBox").classList.remove("hidden");
+    }
+    function closeEmpEdit() { editId = null; document.getElementById("empEditBox").classList.add("hidden"); }
+    function applyEmpEdit() {
+      const e = state.employees.find(x => x.id === editId); if (!e) return;
+      const pin = document.getElementById("edPin").value.trim();
+      if (pin && !/^\d{4}$/.test(pin)) return alert("PIN de 4 dígitos.");
+      e.name = document.getElementById("edName").value.trim() || e.name; e.ci = document.getElementById("edCi").value.trim() || e.ci; e.sector = document.getElementById("edSec").value.trim() || e.sector;
+      if (pin) { e.pin = pin; e.pinReset = false; }
+      if (db) db.collection("carl_peters_employees").doc(e.id).set(e, { merge: true }).catch(() => {});
+      persist(true); alert("Guardado.");
+    }
+    function resetEmpPin() {
+      const e = state.employees.find(x => x.id === editId); if (!e) return;
+      e.pin = ""; e.pinReset = true; document.getElementById("edPin").value = "";
+      if (db) db.collection("carl_peters_employees").doc(e.id).set(e, { merge: true }).catch(() => {});
+      persist(true); alert("PIN reseteado. El empleado creará uno nuevo al entrar.");
+    }
+    function deleteEmp() {
+      if (!editId || !confirm("¿Eliminar empleado?")) return;
+      const id = editId; state.employees = state.employees.filter(x => x.id !== id); delete state.marks[id];
+      if (db) db.collection("carl_peters_employees").doc(id).delete().catch(() => {});
+      closeEmpEdit(); persist(true);
+    }
+
+    function periodDates(mStr, per) {
+      const [y, m] = (mStr || today().slice(0,7)).split("-").map(Number);
+      const last = new Date(y, m, 0).getDate();
+      const s = per === "2" ? 16 : 1, e = per === "1" ? Math.min(15, last) : last;
+      const out = []; for (let d=s; d<=e; d++) out.push(`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`);
+      return out;
+    }
+
+    function renderCal() {
+      const id = document.getElementById("calEmp").value || state.employees[0]?.id;
+      const m = document.getElementById("calMonth").value || today().slice(0,7);
+      const per = document.getElementById("calPer").value || "1";
+      const dts = periodDates(m, per), marks = (id && state.marks[id]) || {};
+      let tn = 0, te = 0;
+      document.getElementById("calBody").innerHTML = dts.map(dt => {
+        const o = marks[dt] || {}, c = calcDay(o, dt, false); tn += c.norm; te += c.ext;
+        return `<tr><td>${dt}</td><td>${o.m1||"-"}</td><td>${o.m2||"-"}</td><td>${o.m3||"-"}</td><td>${o.m4||"-"}</td><td>${fmtHMS(c.norm)}</td><td>${fmtHMS(c.ext)}</td><td>${fmtHMS(c.sec)}</td></tr>`;
+      }).join("");
+      document.getElementById("calSummary").textContent = `Normales: ${fmtHMS(tn)} | Extras: ${fmtHMS(te)} | Total: ${fmtHMS(tn+te)}`;
+    }
+
+    function initMap() {
+      if (map || !window.L) return;
+      map = L.map("gpsMap", { center: [-25.3833, -55.7], zoom: 13 });
+      satGrp = L.layerGroup([
+        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"),
+        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}")
+      ]);
+      osmLay = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png");
+      satGrp.addTo(map); mkLay = L.layerGroup().addTo(map);
+    }
+    function setMapLayer(l) {
+      initMap();
+      if (l === "sat") { if (map.hasLayer(osmLay)) map.removeLayer(osmLay); if (!map.hasLayer(satGrp)) satGrp.addTo(map); }
+      else { if (map.hasLayer(satGrp)) map.removeLayer(satGrp); if (!map.hasLayer(osmLay)) osmLay.addTo(map); }
+    }
+    function setGpsMode(m) { gpsMode = m; document.getElementById("mLive").className = "btn " + (m==="live"?"btn-pri":"btn-dark"); document.getElementById("mHist").className = "btn " + (m==="hist"?"btn-pri":"btn-dark"); refreshGps(true); }
+    function drawGpsLive(center) {
+      mkLay.clearLayers(); if (poly) { map.removeLayer(poly); poly = null; }
+      const fid = document.getElementById("gpsEmp").value;
+      const pts = Object.values(gpsLive).filter(x => x && (!fid || fid==="ALL" || x.empId===fid));
+      const b = [];
+      pts.forEach(p => { L.circleMarker([p.lat, p.lng], { radius:8, color:"#fff", fillColor:"#16a34a", fillOpacity:1 }).bindPopup(`<b>${p.name}</b><br>${p.date} ${p.time} (${p.speed} km/h)`).addTo(mkLay); b.push([p.lat, p.lng]); });
+      if (center && b.length) { centeredOnce = true; map.fitBounds(b, { padding:[35,35], maxZoom:16 }); }
+    }
+    function refreshGps(fit) {
+      initMap(); setTimeout(() => map && map.invalidateSize(), 100);
+      if (gpsMode === "live") { drawGpsLive(fit); return; }
+      mkLay.clearLayers(); if (poly) { map.removeLayer(poly); poly = null; }
+      const id = document.getElementById("gpsEmp").value, dt = document.getElementById("gpsDate").value || today();
+      if (!db || !id || id === "ALL") return;
+      db.collection("carl_peters_gps_history").doc(`${id}__${dt}`).get().then(doc => {
+        const arr = doc.exists && Array.isArray(doc.data().points) ? doc.data().points : [];
+        if (!arr.length) return;
+        const ll = arr.map(p => [p.lat, p.lng]);
+        poly = L.polyline(ll, { color:"#dc2626", weight:4 }).addTo(mkLay);
+        arr.forEach(p => L.circleMarker([p.lat, p.lng], { radius:5, color:"#fff", fillColor:"#dc2626", fillOpacity:1 }).bindPopup(`${p.time} (${p.speed} km/h)`).addTo(mkLay));
+        if (fit) map.fitBounds(poly.getBounds(), { padding:[30,30] });
+      }).catch(() => {});
+    }
+    function centerGps() { refreshGps(true); }
+
+    function uploadLogo(ev) {
+      const f = ev.target.files?.[0]; if (!f) return;
+      const r = new FileReader(); r.onload = e => {
+        const img = new Image(); img.onload = () => {
+          const c = document.createElement("canvas"); const s = 220;
+          c.width = s; c.height = s; c.getContext("2d").drawImage(img, 0, 0, s, s);
+          state.companyLogo = c.toDataURL("image/png", .9); persist(true);
+        }; img.src = e.target.result;
+      }; r.readAsDataURL(f);
+    }
+    function clearLogo() { state.companyLogo = ""; persist(true); }
+    function saveRules() { state.rules = { wd: Number(document.getElementById("cfgWd").value)||8, sat: Number(document.getElementById("cfgSat").value)||4 }; persist(true); }
+
+    function enableGpsOnce() {
+      if (!navigator.geolocation) return alert("GPS no disponible.");
+      navigator.geolocation.getCurrentPosition(pos => {
+        localStorage.setItem(GPS_KEY, "1"); sendGps(pos); startGpsLoop(); alert("GPS permitido y probado.");
+      }, err => alert("Error GPS: " + err.message), { enableHighAccuracy:true });
+    }
+    function sendGps(pos) {
+      const emp = getMobEmp(); if (!emp || !pos?.coords) return;
+      const data = { empId:emp.id, name:emp.name, lat:+pos.coords.latitude.toFixed(6), lng:+pos.coords.longitude.toFixed(6), speed:pos.coords.speed?+(pos.coords.speed*3.6).toFixed(1):0, date:today(), time:nowT(), ts:Date.now() };
+      gpsLive[emp.id] = data;
+      if (db) {
+        db.collection("carl_peters_gps_live").doc(emp.id).set(data, { merge:true }).catch(() => {});
+        db.collection("carl_peters_gps_history").doc(`${emp.id}__${data.date}`).set({ empId:emp.id, date:data.date, points:firebase.firestore.FieldValue.arrayUnion({ lat:data.lat, lng:data.lng, speed:data.speed, time:data.time, ts:data.ts }) }, { merge:true }).catch(() => {});
+      }
+    }
+    function startGpsLoop() {
+      if (gpsTimer) return;
+      gpsTimer = setInterval(() => {
+        if (localStorage.getItem(GPS_KEY) === "1" && getMobEmp() && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(sendGps, () => {}, { enableHighAccuracy:true, maximumAge:5000 });
+        }
+      }, 10000);
+    }
+
+    function wipeAllData() {
+      if (!confirm("¿Borrar todos los empleados, marcaciones y GPS?")) return;
+      if (prompt("Escriba BORRAR para confirmar:") !== "BORRAR") return;
+      state = { companyLogo: state.companyLogo||"", rules:{wd:8,sat:4}, employees:[], marks:{} };
+      localStorage.removeItem(MOB_KEY);
+      if (db) {
+        db.collection("carl_peters").doc("system_state_2026").set(state).catch(() => {});
+        ["carl_peters_employees","carl_peters_marks","carl_peters_gps_live","carl_peters_gps_history"].forEach(col => db.collection(col).get().then(s => s.forEach(d => d.ref.delete().catch(() => {}))).catch(() => {}));
+      }
+      persist(false); alert("Base limpia.");
+    }
+
+    // MOBILE
+    const getMobEmp = () => state.employees.find(e => e.id === localStorage.getItem(MOB_KEY)) || null;
+    function setAuthTab(t) {
+      document.getElementById("fLogin").classList.toggle("hidden", t!=="login");
+      document.getElementById("fReg").classList.toggle("hidden", t!=="reg");
+      document.getElementById("tLog").classList.toggle("active", t==="login");
+      document.getElementById("tReg").classList.toggle("active", t==="reg");
+    }
+    function mobLogin(e) {
+      e.preventDefault();
+      const q = document.getElementById("lId").value.trim().toLowerCase(), dig = q.replace(/\D/g,""), pin = document.getElementById("lPin").value.trim();
+      const emp = state.employees.find(x => x.name.toLowerCase().includes(q) || (dig.length>=4 && x.ci.replace(/\D/g,"")===dig));
+      if (!emp) return alert("Empleado no encontrado.");
+      if (!emp.pin || emp.pinReset) { const np = prompt("Crea tu nuevo PIN de 4 dígitos:"); if (!/^\d{4}$/.test(np||"")) return alert("PIN inválido."); emp.pin = np; emp.pinReset = false; }
+      else if (pin !== emp.pin && pin !== MASTER_PIN) return alert("PIN incorrecto.");
+      localStorage.setItem(MOB_KEY, emp.id); document.getElementById("lPin").value = "";
+      persist(true); if (navigator.geolocation && localStorage.getItem(GPS_KEY)==="1") navigator.geolocation.getCurrentPosition(sendGps, ()=>{}, {enableHighAccuracy:true}); startGpsLoop();
+    }
+    function mobRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById("rName").value.trim(), ci = document.getElementById("rCi").value.trim(), sec = document.getElementById("rSec").value.trim()||"Ganado", pin = document.getElementById("rPin").value.trim();
+      if (!name || !ci || !/^\d{4}$/.test(pin)) return alert("Complete los datos y un PIN de 4 dígitos.");
+      const emp = { id:"emp-"+Date.now(), name, ci, sector:sec, pin };
+      state.employees.push(emp); localStorage.setItem(MOB_KEY, emp.id);
+      if (db) db.collection("carl_peters_employees").doc(emp.id).set(emp, { merge:true }).catch(() => {});
+      persist(true); if (navigator.geolocation && localStorage.getItem(GPS_KEY)==="1") navigator.geolocation.getCurrentPosition(sendGps, ()=>{}, {enableHighAccuracy:true}); startGpsLoop();
+    }
+    function mobResetPin() {
+      const q = prompt("Escribe tu nombre o C.I.:"); if (!q) return;
+      const emp = state.employees.find(x => x.name.toLowerCase().includes(q.toLowerCase()) || x.ci.replace(/\D/g,"")===q.replace(/\D/g,""));
+      if (!emp) return alert("No encontrado.");
+      const np = prompt("Nuevo PIN de 4 dígitos:"); if (!/^\d{4}$/.test(np||"")) return alert("Debe ser de 4 dígitos.");
+      emp.pin = np; emp.pinReset = false; localStorage.setItem(MOB_KEY, emp.id);
+      if (db) db.collection("carl_peters_employees").doc(emp.id).set(emp, { merge:true }).catch(() => {});
+      persist(true);
+    }
+    function mobLogout() { localStorage.removeItem(MOB_KEY); renderAll(); }
+    function setMobSub(v) {
+      document.getElementById("subPunchBtn").classList.toggle("active", v==="punch");
+      document.getElementById("subHoursBtn").classList.toggle("active", v==="hours");
+      document.getElementById("subPunch").classList.toggle("hidden", v!=="punch");
+      document.getElementById("subHours").classList.toggle("hidden", v!=="hours");
+      if (v === "hours") renderMobHours();
+    }
+    function shiftMobDate(d) { const inp = document.getElementById("mDate"); const dt = new Date((inp.value||today())+"T12:00:00"); dt.setDate(dt.getDate()+d); inp.value = dt.toISOString().slice(0,10); renderMob(); }
+    function fpDown() { document.getElementById("fpBtn").classList.add("scan"); try{navigator.vibrate(25);}catch{} }
+    function fpCancel() { document.getElementById("fpBtn").classList.remove("scan"); }
+    function fpUp() {
+      setTimeout(() => document.getElementById("fpBtn").classList.remove("scan"), 250);
+      try{navigator.vibrate([40,25,50]);}catch{}
+      const emp = getMobEmp(); if (!emp) return;
+      const dt = document.getElementById("mDate").value || today();
+      if (!state.marks[emp.id]) state.marks[emp.id] = {};
+      if (!state.marks[emp.id][dt]) state.marks[emp.id][dt] = {};
+      const o = state.marks[emp.id][dt], k = ["m1","m2","m3","m4"].find(x => !o[x]);
+      if (!k) return alert("4 marcaciones completas en este día.");
+      o[k] = nowT();
+      if (db) db.collection("carl_peters_marks").doc(`${emp.id}__${dt}`).set({ empId:emp.id, date:dt, ...o, ts:Date.now() }, { merge:true }).catch(() => {});
+      document.getElementById("fpMsg").textContent = "Marcado a las " + o[k];
+      persist(true);
+      if (navigator.geolocation && localStorage.getItem(GPS_KEY)==="1") navigator.geolocation.getCurrentPosition(sendGps, ()=>{}, {enableHighAccuracy:true});
+    }
+
+    function renderMobHours() {
+      const emp = getMobEmp(); if (!emp) return;
+      const rng = document.getElementById("hRange").value, m = document.getElementById("hMonth").value || today().slice(0,7);
+      let dts = [];
+      if (rng === "WEEK") {
+        const now = new Date(), mon = new Date(now); mon.setDate(now.getDate() - (now.getDay()===0?6:now.getDay()-1));
+        for (let i=0;i<7;i++){ const x=new Date(mon); x.setDate(mon.getDate()+i); dts.push(`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`); }
+      } else dts = periodDates(m, rng);
+      const marks = state.marks[emp.id] || {};
+      let sn=0, se=0, st=0, html="";
+      dts.forEach(dt => {
+        const o = marks[dt], c = calcDay(o, dt, true); sn+=c.norm; se+=c.ext; st+=c.sec;
+        if (o && (o.m1||o.m2||o.m3||o.m4)) html += `<div class="card" style="margin:0;padding:8px;"><b>${dt}</b> — ${fmtHMS(c.sec)}<br><span style="font-size:11px;color:var(--mut);">${[o.m1,o.m2,o.m3,o.m4].filter(Boolean).join(" • ")}</span></div>`;
+      });
+      document.getElementById("hNorm").textContent = fmtHMS(sn); document.getElementById("hExt").textContent = fmtHMS(se); document.getElementById("hTot").textContent = fmtHMS(st);
+      document.getElementById("hList").innerHTML = html || `<div style="font-size:12px;color:var(--mut);">Sin registros en este período.</div>`;
+    }
+
+    function renderMob() {
+      const emp = getMobEmp();
+      document.getElementById("mobAuth").classList.toggle("hidden", !!emp);
+      document.getElementById("mobApp").classList.toggle("hidden", !emp);
+      document.getElementById("empList").innerHTML = state.employees.map(e => `<option value="${e.name}">${e.ci}</option>`).join("");
+      if (!emp) return;
+      document.getElementById("mName").textContent = emp.name;
+      document.getElementById("mMeta").textContent = `${emp.sector} • C.I. ${emp.ci}`;
+      const dt = document.getElementById("mDate").value || today(), o = (state.marks[emp.id]?.[dt]) || {}, c = calcDay(o, dt, true);
+      document.getElementById("mNorm").textContent = fmtHMS(c.norm) + (c.run?" ⏱":"");
+      document.getElementById("mExt").textContent = fmtHMS(c.ext);
+      const lbls = [["m1","1. Ent. Mañana"],["m2","2. Sal. Mediodía"],["m3","3. Ent. Tarde"],["m4","4. Sal. Tarde"]];
+      document.getElementById("mMarks").innerHTML = lbls.map(([k,l]) => `<div style="display:flex;justify-content:space-between;"><span>${l}</span><b>${o[k]||"--:--:--"}</b></div>`).join("");
+      const nxt = lbls.find(([k]) => !o[k]);
+      document.getElementById("fpLbl").textContent = nxt ? `Tocar huella: ${nxt[1]}` : "Jornada completa (4/4)";
+    }
+
+    function renderAll() {
+      const lg = state.companyLogo || "";
+      ["topLogo","mobHeadLogo"].forEach(id => { const el=document.getElementById(id); if(el){ el.src=lg; el.classList.toggle("hidden",!lg); } });
+      document.getElementById("cfgLogo").src = lg || "./icon-192.png";
+      document.getElementById("mobAuthLogo").src = lg || "./icon-192.png";
+      document.getElementById("cfgWd").value = state.rules?.wd ?? 8;
+      document.getElementById("cfgSat").value = state.rules?.sat ?? 4;
+
+      const dt = today(); let mCnt = 0;
+      document.getElementById("hoyBody").innerHTML = state.employees.map(e => {
+        const o = (state.marks[e.id]?.[dt]) || {}, c = calcDay(o, dt, true);
+        mCnt += ["m1","m2","m3","m4"].filter(k => o[k]).length;
+        return `<tr><td><b>${e.name}</b></td><td>${e.ci}</td><td>${e.sector}</td><td>${o.m1||"-"}</td><td>${o.m2||"-"}</td><td>${o.m3||"-"}</td><td>${o.m4||"-"}</td><td><b>${fmtHMS(c.norm)}${c.run?" ⏱":""}</b></td><td>${fmtHMS(c.ext)}</td></tr>`;
+      }).join("");
+      document.getElementById("hoyCount").textContent = `${state.employees.length} empleados • ${mCnt} marcas hoy`;
+
+      document.getElementById("empBody").innerHTML = state.employees.map(e => `<tr><td><b>${e.name}</b></td><td>${e.ci}</td><td>${e.sector}</td><td>${e.pinReset?"Pendiente":(e.pin||"-")}</td><td><button class="btn btn-pri" onclick="openEmpEdit('${e.id}')">Editar</button></td></tr>`).join("");
+
+      const opts = state.employees.map(e => `<option value="${e.id}">${e.name} (${e.ci})</option>`).join("");
+      ["calEmp","gpsEmp"].forEach(id => { const s=document.getElementById(id); if(!s) return; const v=s.value; s.innerHTML=(id==="gpsEmp"?`<option value="ALL">Todos</option>`:"")+opts; if(v) s.value=v; });
+      if (!document.getElementById("calMonth").value) document.getElementById("calMonth").value = dt.slice(0,7);
+      if (!document.getElementById("hMonth").value) document.getElementById("hMonth").value = dt.slice(0,7);
+      if (!document.getElementById("mDate").value) document.getElementById("mDate").value = dt;
+      if (!document.getElementById("gpsDate").value) document.getElementById("gpsDate").value = dt;
+      renderCal(); renderMob();
+    }
+
+    setInterval(() => { document.getElementById("mClock").textContent = "Hora del dispositivo: " + nowT(); renderMob(); }, 1000);
+    setLayout(window.innerWidth > 900 ? "admin" : "mobile");
+    renderAll();
+    initFB();
+    if (localStorage.getItem(GPS_KEY) === "1") startGpsLoop();
+  </script>
+</body>
+</html>
