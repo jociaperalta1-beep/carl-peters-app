@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CARL PETERS — Asistencia & Nómina PY 2026</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" href="./icon-192.png" />
+  <meta name="theme-color" content="#0f172a" />
+  <style>
+    :root {
+      --bg-app: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-sidebar: #0f172a;
+      --bg-sidebar-hover: #1e293b;
+      --primary: #0f172a;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #991b1b;
+      --success: #16a34a;
+      --warning: #d97706;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    body { background: var(--bg-app); color: var(--text-main); line-height: 1.45; }
+
+    .topbar-global {
+      background: #090d16;
+      color: #fff;
+      padding: 10px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid #1e293b;
+      position: sticky;
+      top: 0;
+      z-index: 60;
+    }
+    .brand-title { font-weight: 800; font-size: 15px; letter-spacing: 0.4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .badge-live {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+      background: rgba(22, 163, 74, 0.22); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.45);
+    }
+    .badge-local {
+      background: rgba(217, 119, 6, 0.22); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.45);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
+
+    .mode-switch { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn {
+      border: none; border-radius: 8px; padding: 8px 13px; font-size: 13px; font-weight: 600;
+      cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.15s ease;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-dark { background: #1e293b; color: #fff; }
+    .btn-dark:hover { background: #334155; }
+    .btn-outline { background: #fff; color: var(--text-main); border: 1px solid var(--border); }
+    .btn-outline:hover { background: #f8fafc; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-warning { background: var(--warning); color: #fff; }
+    .btn-exit {
+      background: linear-gradient(135deg, #dc2626, #7f1d1d);
+      color: #ffffff;
+      font-weight: 800;
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: 1px solid #450a0a;
+      box-shadow: 0 2px 6px rgba(185, 28, 28, 0.35);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+    .btn-exit:hover { background: linear-gradient(135deg, #b91c1c, #450a0a); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 390px;
+      min-height: calc(100vh - 50px);
+    }
+    @media (max-width: 1120px) {
+      .workspace { grid-template-columns: 1fr; }
+    }
+
+    /* ADMIN LOCK / LOGIN SCREEN */
+    .admin-lock-screen {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 16px;
+      background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+      min-height: calc(100vh - 50px);
+    }
+    .login-card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      border: 1px solid #e2e8f0;
+    }
+    .login-badge {
+      display: inline-block;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-weight: 800;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+    }
+
+    /* ADMIN SIDE */
+    .admin-shell { display: flex; min-height: 100%; }
+    .sidebar {
+      width: 235px;
+      background: var(--bg-sidebar);
+      color: #cbd5e1;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    @media (max-width: 780px) {
+      .admin-shell { flex-direction: column; }
+      .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; }
+    }
+    .nav-item {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      color: #cbd5e1;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    @media (max-width: 780px) { .nav-item { width: auto; } }
+    .nav-item:hover { background: var(--bg-sidebar-hover); color: #fff; }
+    .nav-item.active { background: var(--accent); color: #fff; }
+
+    .admin-main { flex: 1; padding: 18px; overflow-x: auto; }
+    .module-header {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .module-title { font-size: 18px; font-weight: 800; color: var(--primary); }
+    .module-sub { font-size: 12px; color: var(--text-muted); }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .card-title { font-size: 15px; font-weight: 800; color: var(--primary); }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .kpi-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .kpi-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+    .kpi-val { font-size: 20px; font-weight: 800; margin-top: 4px; color: var(--primary); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+    th { background: #f8fafc; font-weight: 700; color: #334155; }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+      background: #fff;
+      color: var(--text-main);
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .field-label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; }
+
+    .status-pill {
+      display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    }
+    .pill-ok { background: #dcfce7; color: #166534; }
+    .pill-warn { background: #fef3c7; color: #92400e; }
+    .pill-closed { background: #fee2e2; color: #991b1b; }
+    .pill-sat { background: #dbeafe; color: #1e40af; }
+
+    .sub-panel {
+      border: 2px solid #cbd5e1;
+      background: #f8fafc;
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    /* MOBILE APP EMULATOR */
+    .phone-column {
+      background: #e2e8f0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border-left: 1px solid #cbd5e1;
+    }
+    .phone-frame {
+      width: 100%;
+      max-width: 360px;
+      background: #0f172a;
+      border-radius: 34px;
+      padding: 12px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+    }
+    .phone-screen {
+      background: #f8fafc;
+      border-radius: 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 675px;
+    }
+    .phone-header {
+      background: #0f172a;
+      color: #fff;
+      padding: 14px;
+    }
+    .phone-body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+    .date-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 6px;
+      background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 8px;
+    }
+    .hours-strip {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .hour-card {
+      background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center;
+    }
+    .hour-card strong { display: block; font-size: 16px; color: var(--primary); }
+    .hour-card span { font-size: 11px; color: var(--text-muted); }
+
+    .biometric-zone {
+      margin-top: auto;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      text-align: center;
+    }
+    .fingerprint-btn {
+      width: 78px; height: 78px; border-radius: 50%;
+      border: 3px solid var(--accent);
+      background: #eff6ff; color: var(--accent);
+      font-size: 32px; font-weight: 800;
+      cursor: pointer; margin: 8px auto;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .fingerprint-btn:active { transform: scale(0.95); background: #dbeafe; }
+
+    .hidden { display: none !important; }
+
+    @media print {
+      .topbar-global, .sidebar, .phone-column, .no-print, .btn-exit { display: none !important; }
+      .workspace { display: block; }
+      .admin-main { padding: 0; }
+      .card { border: none; box-shadow: none; }
+    }
+  
+    /* MODO SOLO APP APK EN CELULAR REAL (PANTALLA COMPLETA SIN MARCO DE SIMULADOR) */
+    body.is-mobile-apk .topbar-global { padding: 8px 12px; }
+    body.is-mobile-apk .mode-switch { display: none !important; }
+    body.is-mobile-apk .phone-column {
+      padding: 0 !important;
+      background: #f8fafc !important;
+      border-left: none !important;
+      min-height: calc(100vh - 44px);
+    }
+    body.is-mobile-apk .phone-frame {
+      max-width: 100% !important;
+      width: 100% !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    body.is-mobile-apk .phone-screen {
+      border-radius: 0 !important;
+      min-height: calc(100vh - 44px) !important;
+      flex: 1;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="topbar-global">
+    <div class="brand-title">
+      <span>CARL PETERS</span>
+      <span style="font-size:12px;font-weight:500;color:#94a3b8;">Asistencia & Nómina PY 2026</span>
+      <span id="liveStatusBadge" class="badge-live badge-local"><span class="dot"></span> Conectando a Firestore...</span>
+    </div>
+    <div class="mode-switch">
+      <button id="installPwaBtn" class="btn btn-sm btn-success hidden" onclick="triggerPwaInstall()">💻 Instalar App en PC</button>
+      <button class="btn btn-sm btn-outline" onclick="setViewLayout('both')">Split Web + APK</button>
+      <button class="btn btn-sm btn-outline" onclick="setViewLayout('admin')">Solo Web Admin</button>
+      <button class="btn btn-sm btn-outline" onclick="setViewLayout('mobile')">Solo App APK</button>
+    </div>
+  </div>
+
+  <div id="workspace" class="workspace">
+    <!-- ADMIN LOGIN GATE -->
+    <section id="adminLoginGate" class="admin-lock-screen">
+      <div class="login-card">
+        <span class="login-badge">🔒 ACCESO PROTEGIDO • ADMINISTRACIÓN</span>
+        <h2 style="font-size:21px;font-weight:800;color:#0f172a;margin-bottom:4px;">CARL PETERS</h2>
+        <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
+          Ingrese su usuario y clave/PIN de administrador para gestionar asistencia, horarios y liquidaciones en vivo.
+        </p>
+
+        <form onsubmit="handleAdminLogin(event)" style="display:grid;gap:12px;">
+          <div>
+            <label class="field-label">Usuario Administrador</label>
+            <input id="loginAdminUser" autocomplete="username" placeholder="admin" value="admin" required />
+          </div>
+          <div>
+            <label class="field-label">Contraseña o PIN Maestro</label>
+            <input id="loginAdminPass" type="password" autocomplete="current-password" placeholder="••••••" required />
+          </div>
+          <div id="loginErrorMsg" class="hidden" style="font-size:12px;color:#dc2626;font-weight:700;background:#fee2e2;padding:8px 10px;border-radius:8px;">
+            Usuario o contraseña incorrectos.
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:14px;">
+            🔓 Ingresar al Panel Administrativo
+          </button>
+        </form>
+
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b;">
+          Acceso inicial por defecto: Usuario <strong>admin</strong> / Clave <strong>2026</strong> (puedes cambiarla adentro en Seguridad). La App móvil de marcación sigue disponible a la derecha sin bloquear al empleado.
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN WEB PANEL (UNLOCKED) -->
+    <section id="adminSection" class="admin-shell hidden">
+      <aside class="sidebar">
+        <button class="nav-item active" data-nav="menu" onclick="openAdminModule('menu')">🏠 Panel Principal</button>
+        <button class="nav-item" data-nav="asistencia" onclick="openAdminModule('asistencia')">🕒 Asistencia Hoy</button>
+        <button class="nav-item" data-nav="rrhh" onclick="openAdminModule('rrhh')">👥 RRHH & Empleados</button>
+        <button class="nav-item" data-nav="calendario" onclick="openAdminModule('calendario')">📅 Calendario & Quincena</button>
+        <button class="nav-item" data-nav="liquidacion" onclick="openAdminModule('liquidacion')">💰 Salario / Liquidación</button>
+        <button class="nav-item" data-nav="seguridad" onclick="openAdminModule('seguridad')">🔐 Seguridad & Firebase</button>
+        <button class="nav-item" style="margin-top:auto;background:#7f1d1d;color:#fecaca;" onclick="lockAdminSession()">🔒 Cerrar Sesión Admin</button>
+      </aside>
+
+      <main class="admin-main">
+        <!-- PANEL PRINCIPAL -->
+        <div id="mod-menu" class="admin-module">
+          <div class="module-header">
+            <div>
+              <div class="module-title">CARL PETERS — Panel Principal de Administración</div>
+              <div class="module-sub">Proyecto Firestore: <strong>hph-transporte-sa</strong> (Conectado automáticamente) • Lun–Vie: <strong id="lblLunVie">8</strong>h | Sáb: <strong id="lblSabado">4</strong>h</div>
+            </div>
+            <button class="btn-exit" onclick="lockAdminSession()">🔒 Cerrar Sesión</button>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi-box">
+              <div class="kpi-label">Funcionarios Activos</div>
+              <div id="kpiEmployees" class="kpi-val">0</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-label">Marcaciones Hoy</div>
+              <div id="kpiMarksToday" class="kpi-val">0</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-label">Horas Normales (Acumulado)</div>
+              <div id="kpiNormalHours" class="kpi-val">0.00 h</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-label">Horas Extras (Acumulado)</div>
+              <div id="kpiExtraHours" class="kpi-val">0.00 h</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Regla de Horarios Laborales — CARL PETERS (Paraguay 2026)</div>
+            <div class="grid-4">
+              <div>
+                <label class="field-label">Jornada Normal Lun–Vie (horas)</label>
+                <input id="cfgWeekdayLimit" type="number" step="0.5" min="1" max="12" value="8" onchange="saveScheduleRules()" />
+              </div>
+              <div>
+                <label class="field-label">Jornada Reducida Sábado (horas)</label>
+                <input id="cfgSaturdayLimit" type="number" step="0.5" min="0" max="12" value="4" onchange="saveScheduleRules()" />
+              </div>
+              <div>
+                <label class="field-label">Tarifa Hora Normal Diurna (Gs.)</label>
+                <input id="cfgRateNormal" type="number" value="14635" onchange="saveScheduleRules()" />
+              </div>
+              <div>
+                <label class="field-label">Tarifa Hora Extra +50% (Gs.)</label>
+                <input id="cfgRateExtra" type="number" value="21953" onchange="saveScheduleRules()" />
+              </div>
+            </div>
+            <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+              Todo tiempo trabajado los días <strong>Sábado</strong> por encima del límite configurado (por defecto <strong>4.00 h</strong>) pasa automáticamente a <strong>Horas Extras</strong>.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Módulos del Sistema</div>
+            <div class="grid-3">
+              <button class="btn btn-primary" onclick="openAdminModule('asistencia')">🕒 Asistencia Hoy</button>
+              <button class="btn btn-primary" onclick="openAdminModule('rrhh')">👥 RRHH & Empleados</button>
+              <button class="btn btn-primary" onclick="openAdminModule('calendario')">📅 Calendario & Quincena</button>
+              <button class="btn btn-success" onclick="openAdminModule('liquidacion')">💰 Salario / Liquidación</button>
+              <button class="btn btn-dark" onclick="openAdminModule('seguridad')">🔐 Seguridad & Firebase</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ASISTENCIA HOY -->
+        <div id="mod-asistencia" class="admin-module hidden">
+          <div class="module-header">
+            <div>
+              <div class="module-title">Asistencia Hoy — En Tiempo Real</div>
+              <div class="module-sub" id="todayRuleSubtitle">Sincronización instantánea desde la App del celular</div>
+            </div>
+            <button class="btn-exit" onclick="exitToMenu()">✕ Salir / Volver</button>
+          </div>
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Funcionario</th>
+                  <th>C.I.</th>
+                  <th>Sector</th>
+                  <th>1. Ent. Mañana</th>
+                  <th>2. Sal. Mediodía</th>
+                  <th>3. Ent. Tarde</th>
+                  <th>4. Sal. Tarde</th>
+                  <th>Normales</th>
+                  <th>Extras</th>
+                </tr>
+              </thead>
+              <tbody id="todayAttendanceBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- RRHH & EMPLEADOS -->
+        <div id="mod-rrhh" class="admin-module hidden">
+          <div class="module-header">
+            <div>
+              <div class="module-title">RRHH & Empleados</div>
+              <div class="module-sub">Gestión de personal, sectores y PIN de acceso móvil</div>
+            </div>
+            <button class="btn-exit" onclick="exitToMenu()">✕ Salir / Volver</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Registrar Nuevo Funcionario</div>
+            <div class="grid-3">
+              <div>
+                <label class="field-label">Nombre y Apellido</label>
+                <input id="empName" placeholder="Ej: Juan Carlos Benítez" />
+              </div>
+              <div>
+                <label class="field-label">Cédula de Identidad (C.I.)</label>
+                <input id="empCi" placeholder="Ej: 4.123.456" />
+              </div>
+              <div>
+                <label class="field-label">Sector / Área</label>
+                <select id="empSector">
+                  <option value="Ganado">Ganado</option>
+                  <option value="Tambo">Tambo</option>
+                  <option value="Chacra">Chacra</option>
+                  <option value="Lanzamiento de Cal">Lanzamiento de Cal</option>
+                  <option value="Mantenimiento / Maquinaria">Mantenimiento / Maquinaria</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label">WhatsApp (ej: 595981123456)</label>
+                <input id="empPhone" placeholder="595981000000" />
+              </div>
+              <div>
+                <label class="field-label">PIN App Móvil</label>
+                <input id="empPin" value="1234" />
+              </div>
+              <div style="display:flex;align-items:flex-end;">
+                <button class="btn btn-primary" style="width:100%;" onclick="addEmployee()">+ Guardar Funcionario</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Nómina Activa</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>C.I.</th>
+                  <th>Sector</th>
+                  <th>WhatsApp</th>
+                  <th>PIN</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="employeesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CALENDARIO & QUINCENA -->
+        <div id="mod-calendario" class="admin-module hidden">
+          <div class="module-header">
+            <div>
+              <div class="module-title">Calendario & Quincena</div>
+              <div class="module-sub">Detalle diario con detección automática de Sábados (jornada reducida)</div>
+            </div>
+            <button class="btn-exit" onclick="exitToMenu()">✕ Salir / Volver</button>
+          </div>
+          <div class="card">
+            <div class="grid-3" style="margin-bottom:12px;">
+              <div>
+                <label class="field-label">Funcionario</label>
+                <select id="calEmpSelect" onchange="renderCalendarModule()"></select>
+              </div>
+              <div>
+                <label class="field-label">Mes</label>
+                <input id="calMonthInput" type="month" onchange="renderCalendarModule()" />
+              </div>
+              <div>
+                <label class="field-label">Quincena</label>
+                <select id="calFortnightSelect" onchange="renderCalendarModule()">
+                  <option value="1">1.ª Quincena (Días 1 al 15)</option>
+                  <option value="2">2.ª Quincena (Días 16 al fin de mes)</option>
+                </select>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha / Día</th>
+                  <th>Ent. 1</th>
+                  <th>Sal. 2</th>
+                  <th>Ent. 3</th>
+                  <th>Sal. 4</th>
+                  <th>Normales</th>
+                  <th>Extras</th>
+                  <th>Anotación</th>
+                </tr>
+              </thead>
+              <tbody id="calendarTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SALARIO / LIQUIDACIÓN -->
+        <div id="mod-liquidacion" class="admin-module hidden">
+          <div class="module-header">
+            <div>
+              <div class="module-title">Salario / Liquidación — CARL PETERS</div>
+              <div class="module-sub">Extracto, Registro de Pago, Envío por WhatsApp y cierre quincenal</div>
+            </div>
+            <button class="btn-exit" onclick="exitToMenu()">✕ Salir / Volver</button>
+          </div>
+
+          <div class="card">
+            <div class="grid-3">
+              <div>
+                <label class="field-label">Seleccionar Funcionario</label>
+                <select id="liqEmpSelect" onchange="renderLiquidacion()"></select>
+              </div>
+              <div>
+                <label class="field-label">Mes de Liquidación</label>
+                <input id="liqMonthInput" type="month" onchange="renderLiquidacion()" />
+              </div>
+              <div>
+                <label class="field-label">Quincena</label>
+                <select id="liqFortnightSelect" onchange="renderLiquidacion()">
+                  <option value="1">1.ª Quincena (1–15)</option>
+                  <option value="2">2.ª Quincena (16–Fin)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid-3" style="margin-top:10px;">
+              <div>
+                <label class="field-label">Tarifa Hora Normal (Gs.)</label>
+                <input id="rateNormalDay" type="number" value="14635" onchange="syncRatesFromLiq()" />
+              </div>
+              <div>
+                <label class="field-label">Tarifa Hora Extra +50% (Gs.)</label>
+                <input id="rateExtraDay" type="number" value="21953" onchange="syncRatesFromLiq()" />
+              </div>
+              <div>
+                <label class="field-label">Límite Horas Normales Sábado</label>
+                <input id="liqSaturdayLimit" type="number" step="0.5" value="4" onchange="syncSatFromLiq()" />
+              </div>
+            </div>
+          </div>
+
+          <div id="subpanel-extracto" class="sub-panel hidden">
+            <div class="card-header-bar">
+              <div class="card-title">📄 Extracto Detallado de Horas y Haberes</div>
+              <button class="btn-exit" onclick="closeSubPanels()">✕ Salir / Volver</button>
+            </div>
+            <div id="extractoTextPreview" style="font-size:13px;background:#fff;padding:12px;border-radius:8px;border:1px solid var(--border);white-space:pre-line;"></div>
+          </div>
+
+          <div id="subpanel-pago" class="sub-panel hidden">
+            <div class="card-header-bar">
+              <div class="card-title">💵 Registro de Pago de Salario</div>
+              <button class="btn-exit" onclick="closeSubPanels()">✕ Salir / Volver</button>
+            </div>
+            <div class="grid-3">
+              <div>
+                <label class="field-label">Método de Pago</label>
+                <select id="payMethodInput">
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                  <option value="Billetera / Giros">Billetera / Giros</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label">Observación / Comprobante</label>
+                <input id="payRefInput" placeholder="Ej: Recibo N° 0045" />
+              </div>
+              <div style="display:flex;align-items:flex-end;">
+                <button class="btn btn-success" style="width:100%;" onclick="confirmRegisterPayment()">✓ Confirmar Pago</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="subpanel-whatsapp" class="sub-panel hidden">
+            <div class="card-header-bar">
+              <div class="card-title">📲 Enviar Mensaje / Recibo por WhatsApp</div>
+              <button class="btn-exit" onclick="closeSubPanels()">✕ Salir / Volver</button>
+            </div>
+            <div class="grid-2" style="margin-bottom:10px;">
+              <div>
+                <label class="field-label">Número WhatsApp Destino</label>
+                <input id="waPhoneInput" placeholder="595981123456" />
+              </div>
+              <div style="display:flex;align-items:flex-end;">
+                <button class="btn btn-primary" style="width:100%;" onclick="launchWhatsApp()">Abrir WhatsApp y Enviar</button>
+              </div>
+            </div>
+            <label class="field-label">Vista Previa del Mensaje</label>
+            <textarea id="waMessagePreview" rows="6"></textarea>
+          </div>
+
+          <div class="card" id="liquidacionSummaryCard">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+              <div>
+                <span class="card-title" style="margin:0;">Resumen Quincenal</span>
+                <span id="liqStatusBadge" class="status-pill pill-warn" style="margin-left:8px;">PENDIENTE</span>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;" class="no-print">
+                <button class="btn btn-sm btn-outline" onclick="openSubPanel('extracto')">📄 Ver Extracto</button>
+                <button class="btn btn-sm btn-warning" onclick="toggleClosePeriod()">🔒 Cerrar / Reabrir</button>
+                <button class="btn btn-sm btn-success" onclick="openSubPanel('pago')">💵 Registro de Pago</button>
+                <button class="btn btn-sm btn-primary" onclick="openSubPanel('whatsapp')">📲 Enviar WhatsApp</button>
+                <button class="btn btn-sm btn-dark" onclick="window.print()">🖨️ PDF</button>
+              </div>
+            </div>
+
+            <div id="liqTotalsBox" class="kpi-grid" style="margin-bottom:12px;"></div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha / Día</th>
+                  <th>Marcaciones (1–4)</th>
+                  <th>Normales</th>
+                  <th>Extras</th>
+                  <th>Subtotal Gs.</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="liqDetailBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SEGURIDAD Y FIREBASE EMBEDDED -->
+        <div id="mod-seguridad" class="admin-module hidden">
+          <div class="module-header">
+            <div>
+              <div class="module-title">Seguridad Admin & Conexión Firebase Preconfigurada</div>
+              <div class="module-sub">Credenciales de acceso web y estado de sincronización automática</div>
+            </div>
+            <button class="btn-exit" onclick="exitToMenu()">✕ Salir / Volver</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">🔐 Cambiar Usuario y Contraseña / PIN del Administrador</div>
+            <div class="grid-3">
+              <div>
+                <label class="field-label">Usuario Admin</label>
+                <input id="secNewUser" value="admin" />
+              </div>
+              <div>
+                <label class="field-label">Nueva Contraseña / PIN Admin</label>
+                <input id="secNewPass" type="password" placeholder="Nueva clave" />
+              </div>
+              <div style="display:flex;align-items:flex-end;">
+                <button class="btn btn-primary" style="width:100%;" onclick="updateAdminCredentials()">Guardar Credenciales</button>
+              </div>
+            </div>
+            <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+              Las credenciales se sincronizan en Firestore para que tu clave actualizada funcione desde cualquier PC.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">⚡ Conexión Automática a Firebase Firestore (Grabada en Código)</div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">
+              Esta configuración ya está grabada por defecto en la aplicación. Al abrir el enlace desde cualquier dispositivo, se conecta automáticamente sin pegar nada:
+            </p>
+            <pre id="embeddedFirebaseSummary" style="background:#0f172a;color:#38bdf8;padding:12px;border-radius:8px;font-size:12px;overflow-x:auto;"></pre>
+            <div style="margin-top:10px;display:flex;gap:8px;">
+              <button class="btn btn-success btn-sm" onclick="initDefaultFirebase(false)">🔄 Reconectar Ahora</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- MOBILE EMPLOYEE APK SIMULATOR -->
+    <aside id="mobileSection" class="phone-column">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="phone-header">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:11px;color:#93c5fd;font-weight:700;">CARL PETERS • APK 2026</div>
+                <div id="mobileEmpName" style="font-size:15px;font-weight:800;">Funcionario</div>
+                <div id="mobileEmpMeta" style="font-size:11px;color:#cbd5e1;">Sector • C.I.</div>
+              </div>
+              <button class="btn btn-sm btn-dark" onclick="switchEmployeePin()">Cambiar PIN</button>
+            </div>
+            <div id="mobileClock" style="margin-top:8px;font-size:13px;font-weight:700;color:#4ade80;">--:--:--</div>
+          </div>
+
+          <div class="phone-body">
+            <div class="date-bar">
+              <button class="btn btn-sm btn-outline" onclick="stepMobileDate(-1)">◀</button>
+              <input id="mobileDateInput" type="date" style="width:auto;padding:4px 8px;font-size:12px;" onchange="renderMobileApp()" />
+              <button class="btn btn-sm btn-outline" onclick="stepMobileDate(1)">▶</button>
+            </div>
+
+            <div id="mobileDayRuleBadge" style="font-size:11px;font-weight:700;text-align:center;padding:5px;border-radius:8px;background:#e0f2fe;color:#0369a1;">
+              Jornada Normal: 8h
+            </div>
+
+            <div class="hours-strip">
+              <div class="hour-card">
+                <strong id="mobNormHours">0.00 h</strong>
+                <span>Horas Normales</span>
+              </div>
+              <div class="hour-card">
+                <strong id="mobExtraHours">0.00 h</strong>
+                <span>Horas Extras</span>
+              </div>
+            </div>
+
+            <div class="card" style="padding:10px;margin:0;">
+              <div style="font-size:12px;font-weight:700;margin-bottom:6px;">Marcaciones del Día</div>
+              <div id="mobileMarksList" style="font-size:12px;display:grid;gap:4px;"></div>
+              <div style="margin-top:8px;">
+                <label class="field-label">Anotación del día</label>
+                <input id="mobileNoteInput" placeholder="Ej: Lluvia, campo norte, viaje..." onchange="saveMobileNote()" />
+              </div>
+            </div>
+
+            <div class="biometric-zone">
+              <div id="biometricPrompt" style="font-size:12px;font-weight:700;color:var(--primary);">
+                Tocar huella para marcar: 1. Entrada Mañana
+              </div>
+              <button class="fingerprint-btn" title="Marcar con huella" onclick="punchBiometric()">☝</button>
+              <div style="font-size:11px;color:var(--text-muted);">Sincronizado en vivo con Firestore</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    // CONFIGURACIÓN DE FIREBASE GRABADA POR DEFECTO EN EL CÓDIGO
+    const DEFAULT_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyD4fJDNXbXmb0Q1UtG7kjdjKuzmaWYRfvc",
+      authDomain: "hph-transporte-sa.firebaseapp.com",
+      projectId: "hph-transporte-sa",
+      storageBucket: "hph-transporte-sa.firebasestorage.app",
+      messagingSenderId: "103678951088",
+      appId: "1:103678951088:web:fa0d17a537043f9f0f5c75"
+    };
+
+    const STORAGE_KEY = "carl_peters_system_py2026_v3";
+    const SESSION_AUTH_KEY = "carl_peters_admin_unlocked_v3";
+    let dbFirestore = null;
+    let unsubscribeFirestore = null;
+    let deferredInstallPrompt = null;
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      document.getElementById("installPwaBtn").classList.remove("hidden");
+    });
+
+    function triggerPwaInstall() {
+      if (!deferredInstallPrompt) return alert("Usa el ícono de instalar en la barra de direcciones de Chrome/Edge.");
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.finally(() => {
+        deferredInstallPrompt = null;
+        document.getElementById("installPwaBtn").classList.add("hidden");
+      });
+    }
+
+    function todayISO() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    }
+
+    function nowHMS() {
+      return new Date().toTimeString().slice(0, 8);
+    }
+
+    function getDayInfo(dateISO) {
+      const d = new Date(dateISO + "T12:00:00");
+      const dow = d.getDay();
+      const names = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+      return { dow, dayName: names[dow], isSaturday: dow === 6, isSunday: dow === 0 };
+    }
+
+    function defaultState() {
+      const t = todayISO();
+      return {
+        adminAuth: {
+          user: "admin",
+          pass: "2026"
+        },
+        rules: {
+          weekdayNormalLimit: 8,
+          saturdayNormalLimit: 4,
+          rateNormal: 14635,
+          rateExtra: 21953
+        },
+        employees: [
+          { id: "emp-1", name: "Carlos Vera", ci: "3.890.112", sector: "Ganado", phone: "595981111222", pin: "1111" },
+          { id: "emp-2", name: "Marcos Giménez", ci: "4.512.789", sector: "Mantenimiento / Maquinaria", phone: "595981333444", pin: "2222" },
+          { id: "emp-3", name: "Lucía Paredes", ci: "5.004.210", sector: "Tambo", phone: "595981555666", pin: "3333" }
+        ],
+        activeMobileEmpId: "emp-1",
+        marks: {
+          "emp-1": {
+            [t]: { m1: "07:00:10", m2: "12:00:00", m3: "13:00:00", m4: "17:30:00", note: "Rodeo potrero 4" }
+          },
+          "emp-2": {
+            [t]: { m1: "07:05:00", m2: "12:00:00", m3: "13:00:00", m4: "16:00:00", note: "Revisión tractor" }
+          }
+        },
+        payrollStatus: {}
+      };
+    }
+
+    let state = loadLocalState();
+
+    function loadLocalState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        return {
+          ...defaultState(),
+          ...parsed,
+          adminAuth: { ...defaultState().adminAuth, ...(parsed.adminAuth || {}) },
+          rules: { ...defaultState().rules, ...(parsed.rules || {}) }
+        };
+      } catch {
+        return defaultState();
+      }
+    }
+
+    function saveLocalState(pushRemote = true) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (pushRemote && dbFirestore) {
+        dbFirestore.collection("carl_peters").doc("system_state_2026").set(state, { merge: true }).catch(() => {});
+      }
+      renderAll();
+    }
+
+    window.addEventListener("storage", (e) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        const parsed = JSON.parse(e.newValue);
+        state = {
+          ...defaultState(),
+          ...parsed,
+          adminAuth: { ...defaultState().adminAuth, ...(parsed.adminAuth || {}) },
+          rules: { ...defaultState().rules, ...(parsed.rules || {}) }
+        };
+        renderAll();
+      }
+    });
+
+    // ADMIN LOGIN / LOCK LOGIC
+    function isAdminUnlocked() {
+      return sessionStorage.getItem(SESSION_AUTH_KEY) === "1";
+    }
+
+    function applyAdminLockVisibility() {
+      const gate = document.getElementById("adminLoginGate");
+      const panel = document.getElementById("adminSection");
+      const mobile = document.getElementById("mobileSection");
+      const layoutMode = currentLayoutMode;
+
+      if (layoutMode === "mobile") {
+        gate.classList.add("hidden");
+        panel.classList.add("hidden");
+        mobile.classList.remove("hidden");
+        return;
+      }
+
+      if (isAdminUnlocked()) {
+        gate.classList.add("hidden");
+        panel.classList.remove("hidden");
+      } else {
+        gate.classList.remove("hidden");
+        panel.classList.add("hidden");
+      }
+    }
+
+    function handleAdminLogin(ev) {
+      ev.preventDefault();
+      const u = document.getElementById("loginAdminUser").value.trim().toLowerCase();
+      const p = document.getElementById("loginAdminPass").value.trim();
+      const expectedU = (state.adminAuth?.user || "admin").trim().toLowerCase();
+      const expectedP = (state.adminAuth?.pass || "2026").trim();
+
+      if (u === expectedU && p === expectedP) {
+        sessionStorage.setItem(SESSION_AUTH_KEY, "1");
+        document.getElementById("loginErrorMsg").classList.add("hidden");
+        document.getElementById("loginAdminPass").value = "";
+        
+    // DETECCIÓN AUTOMÁTICA DE CELULAR O APK INSTALADA -> ABRE DIRECTO EN MODO SOLO APP APK
+    function detectAndApplyDeviceMode() {
+      const params = new URLSearchParams(window.location.search);
+      const forcedMode = params.get("mode");
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isNarrowScreen = window.innerWidth <= 820;
+
+      if (forcedMode === "admin") {
+        document.body.classList.remove("is-mobile-apk");
+        setViewLayout("admin");
+      } else if (forcedMode === "mobile" || isMobileUA || isNarrowScreen || isStandalone) {
+        document.body.classList.add("is-mobile-apk");
+        setViewLayout("mobile");
+      } else {
+        document.body.classList.remove("is-mobile-apk");
+        setViewLayout("both");
+      }
+    }
+
+    detectAndApplyDeviceMode();
+        renderAll();
+      } else {
+        document.getElementById("loginErrorMsg").classList.remove("hidden");
+      }
+    }
+
+    function lockAdminSession() {
+      sessionStorage.removeItem(SESSION_AUTH_KEY);
+      
+    // DETECCIÓN AUTOMÁTICA DE CELULAR O APK INSTALADA -> ABRE DIRECTO EN MODO SOLO APP APK
+    function detectAndApplyDeviceMode() {
+      const params = new URLSearchParams(window.location.search);
+      const forcedMode = params.get("mode");
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isNarrowScreen = window.innerWidth <= 820;
+
+      if (forcedMode === "admin") {
+        document.body.classList.remove("is-mobile-apk");
+        setViewLayout("admin");
+      } else if (forcedMode === "mobile" || isMobileUA || isNarrowScreen || isStandalone) {
+        document.body.classList.add("is-mobile-apk");
+        setViewLayout("mobile");
+      } else {
+        document.body.classList.remove("is-mobile-apk");
+        setViewLayout("both");
+      }
+    }
+
+    detectAndApplyDeviceMode();
+    }
+
+    function updateAdminCredentials() {
+      const u = document.getElementById("secNewUser").value.trim();
+      const p = document.getElementById("secNewPass").value.trim();
+      if (!u || !p) return alert("Ingrese usuario y nueva contraseña/PIN.");
+      state.adminAuth = { user: u, pass: p };
+      document.getElementById("secNewPass").value = "";
+      saveLocalState(true);
+      alert("Credenciales de administrador actualizadas correctamente.");
+    }
+
+    // HOURS CALCULATION (WITH SATURDAY REDUCED SCHEDULE)
+    function hmsToSeconds(hms) {
+      if (!hms || !/^\d{2}:\d{2}:\d{2}$/.test(hms)) return null;
+      const [h, m, s] = hms.split(":").map(Number);
+      return h * 3600 + m * 60 + s;
+    }
+
+    function computeDayHours(dayObj, dateISO) {
+      const info = getDayInfo(dateISO || todayISO());
+      const limit = info.isSaturday
+        ? Number(state.rules.saturdayNormalLimit ?? 4)
+        : Number(state.rules.weekdayNormalLimit ?? 8);
+
+      if (!dayObj) return { totalHours: 0, normalHours: 0, extraHours: 0, limit, info };
+      let sec = 0;
+      const s1 = hmsToSeconds(dayObj.m1);
+      const s2 = hmsToSeconds(dayObj.m2);
+      const s3 = hmsToSeconds(dayObj.m3);
+      const s4 = hmsToSeconds(dayObj.m4);
+      if (s1 !== null && s2 !== null && s2 > s1) sec += (s2 - s1);
+      if (s3 !== null && s4 !== null && s4 > s3) sec += (s4 - s3);
+
+      const totalHours = +(sec / 3600).toFixed(2);
+      const normalHours = +Math.min(totalHours, limit).toFixed(2);
+      const extraHours = +Math.max(0, totalHours - limit).toFixed(2);
+      return { totalHours, normalHours, extraHours, limit, info };
+    }
+
+    function saveScheduleRules() {
+      state.rules.weekdayNormalLimit = Math.max(0, Number(document.getElementById("cfgWeekdayLimit").value) || 8);
+      state.rules.saturdayNormalLimit = Math.max(0, Number(document.getElementById("cfgSaturdayLimit").value) || 4);
+      state.rules.rateNormal = Math.max(0, Number(document.getElementById("cfgRateNormal").value) || 14635);
+      state.rules.rateExtra = Math.max(0, Number(document.getElementById("cfgRateExtra").value) || 21953);
+      saveLocalState(true);
+    }
+
+    function syncRatesFromLiq() {
+      state.rules.rateNormal = Math.max(0, Number(document.getElementById("rateNormalDay").value) || 14635);
+      state.rules.rateExtra = Math.max(0, Number(document.getElementById("rateExtraDay").value) || 21953);
+      saveLocalState(true);
+    }
+
+    function syncSatFromLiq() {
+      state.rules.saturdayNormalLimit = Math.max(0, Number(document.getElementById("liqSaturdayLimit").value) || 4);
+      saveLocalState(true);
+    }
+
+    let currentLayoutMode = "both";
+    function setViewLayout(mode) {
+      currentLayoutMode = mode;
+      const mobile = document.getElementById("mobileSection");
+      const ws = document.getElementById("workspace");
+      if (mode === "both") {
+        mobile.classList.remove("hidden");
+        ws.style.gridTemplateColumns = "";
+      } else if (mode === "admin") {
+        mobile.classList.add("hidden");
+        ws.style.gridTemplateColumns = "1fr";
+      } else if (mode === "mobile") {
+        mobile.classList.remove("hidden");
+        ws.style.gridTemplateColumns = "1fr";
+      }
+      
+    // DETECCIÓN AUTOMÁTICA DE CELULAR O APK INSTALADA -> ABRE DIRECTO EN MODO SOLO APP APK
+    function detectAndApplyDeviceMode() {
+      const params = new URLSearchParams(window.location.search);
+      const forcedMode = params.get("mode");
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isNarrowScreen = window.innerWidth <= 820;
+
+      if (forcedMode === "admin") {
+        document.body.classList.remove("is-mobile-apk");
+        setViewLayout("admin");
+      } else if (forcedMode === "mobile" || isMobileUA || isNarrowScreen || isStandalone) {
+        document.body.classList.add("is-mobile-apk");
+        setViewLayout("mobile");
+      } else {
+        document.body.classList.remove("is-mobile-apk");
+        setViewLayout("both");
+      }
+    }
+
+    detectAndApplyDeviceMode();
+    }
+
+    function openAdminModule(modName) {
+      closeSubPanels();
+      document.querySelectorAll(".admin-module").forEach(el => el.classList.add("hidden"));
+      const target = document.getElementById(`mod-${modName}`);
+      if (target) target.classList.remove("hidden");
+
+      document.querySelectorAll(".nav-item").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.nav === modName);
+      });
+      renderAll();
+    }
+
+    function exitToMenu() {
+      closeSubPanels();
+      openAdminModule("menu");
+    }
+
+    function closeSubPanels() {
+      document.querySelectorAll(".sub-panel").forEach(el => el.classList.add("hidden"));
+    }
+
+    function openSubPanel(panelName) {
+      closeSubPanels();
+      const target = document.getElementById(`subpanel-${panelName}`);
+      if (target) target.classList.remove("hidden");
+      if (panelName === "extracto") {
+        document.getElementById("extractoTextPreview").textContent = buildReceiptText();
+      } else if (panelName === "whatsapp") {
+        const empId = document.getElementById("liqEmpSelect").value;
+        const emp = state.employees.find(e => e.id === empId);
+        document.getElementById("waPhoneInput").value = emp?.phone || "";
+        document.getElementById("waMessagePreview").value = buildReceiptText();
+      }
+    }
+
+    function addEmployee() {
+      const name = document.getElementById("empName").value.trim();
+      const ci = document.getElementById("empCi").value.trim();
+      const sector = document.getElementById("empSector").value;
+      const phone = document.getElementById("empPhone").value.trim();
+      const pin = document.getElementById("empPin").value.trim() || "1234";
+      if (!name || !ci) return alert("Ingrese nombre y C.I. del funcionario.");
+      state.employees.push({ id: "emp-" + Date.now(), name, ci, sector, phone, pin });
+      document.getElementById("empName").value = "";
+      document.getElementById("empCi").value = "";
+      document.getElementById("empPhone").value = "";
+      saveLocalState(true);
+    }
+
+    function deleteEmployee(empId) {
+      if (state.employees.length <= 1) return alert("Debe quedar al menos un funcionario.");
+      state.employees = state.employees.filter(e => e.id !== empId);
+      if (state.activeMobileEmpId === empId) state.activeMobileEmpId = state.employees[0].id;
+      saveLocalState(true);
+    }
+
+    function getDatesInPeriod(monthStr, fortnight) {
+      if (!monthStr) monthStr = todayISO().slice(0, 7);
+      const [y, m] = monthStr.split("-").map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      const start = fortnight === "1" ? 1 : 16;
+      const end = fortnight === "1" ? Math.min(15, lastDay) : lastDay;
+      const dates = [];
+      for (let d = start; d <= end; d++) {
+        dates.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+      }
+      return dates;
+    }
+
+    function renderAll() {
+      document.getElementById("cfgWeekdayLimit").value = state.rules.weekdayNormalLimit;
+      document.getElementById("cfgSaturdayLimit").value = state.rules.saturdayNormalLimit;
+      document.getElementById("cfgRateNormal").value = state.rules.rateNormal;
+      document.getElementById("cfgRateExtra").value = state.rules.rateExtra;
+      document.getElementById("rateNormalDay").value = state.rules.rateNormal;
+      document.getElementById("rateExtraDay").value = state.rules.rateExtra;
+      document.getElementById("liqSaturdayLimit").value = state.rules.saturdayNormalLimit;
+      document.getElementById("lblLunVie").textContent = state.rules.weekdayNormalLimit;
+      document.getElementById("lblSabado").textContent = state.rules.saturdayNormalLimit;
+      document.getElementById("secNewUser").value = state.adminAuth?.user || "admin";
+
+      const today = todayISO();
+      const todayInfo = getDayInfo(today);
+      document.getElementById("todayRuleSubtitle").textContent =
+        `Hoy (${todayInfo.dayName} ${today}) — Límite normal: ${todayInfo.isSaturday ? state.rules.saturdayNormalLimit : state.rules.weekdayNormalLimit}h`;
+
+      document.getElementById("kpiEmployees").textContent = state.employees.length;
+
+      let marksTodayCount = 0;
+      let sumNorm = 0;
+      let sumExtra = 0;
+
+      const todayBody = document.getElementById("todayAttendanceBody");
+      todayBody.innerHTML = "";
+
+      state.employees.forEach(emp => {
+        const empMarks = state.marks[emp.id] || {};
+        const dObj = empMarks[today] || {};
+        marksTodayCount += ["m1", "m2", "m3", "m4"].filter(k => dObj[k]).length;
+        const calc = computeDayHours(dObj, today);
+
+        Object.entries(empMarks).forEach(([dt, obj]) => {
+          const c = computeDayHours(obj, dt);
+          sumNorm += c.normalHours;
+          sumExtra += c.extraHours;
+        });
+
+        todayBody.innerHTML += `
+          <tr>
+            <td><strong>${emp.name}</strong></td>
+            <td>${emp.ci}</td>
+            <td>${emp.sector}</td>
+            <td>${dObj.m1 || "-"}</td>
+            <td>${dObj.m2 || "-"}</td>
+            <td>${dObj.m3 || "-"}</td>
+            <td>${dObj.m4 || "-"}</td>
+            <td><strong>${calc.normalHours.toFixed(2)} h</strong></td>
+            <td>${calc.extraHours.toFixed(2)} h</td>
+          </tr>
+        `;
+      });
+
+      document.getElementById("kpiMarksToday").textContent = marksTodayCount;
+      document.getElementById("kpiNormalHours").textContent = sumNorm.toFixed(2) + " h";
+      document.getElementById("kpiExtraHours").textContent = sumExtra.toFixed(2) + " h";
+
+      document.getElementById("employeesTableBody").innerHTML = state.employees.map(e => `
+        <tr>
+          <td><strong>${e.name}</strong></td>
+          <td>${e.ci}</td>
+          <td>${e.sector}</td>
+          <td>${e.phone || "-"}</td>
+          <td>${e.pin}</td>
+          <td><button class="btn btn-sm btn-outline" onclick="deleteEmployee('${e.id}')">Eliminar</button></td>
+        </tr>
+      `).join("");
+
+      populateSelects();
+      renderCalendarModule();
+      renderLiquidacion();
+      renderMobileApp();
+    }
+
+    function populateSelects() {
+      const curMonth = todayISO().slice(0, 7);
+      ["calMonthInput", "liqMonthInput"].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el.value) el.value = curMonth;
+      });
+      const mobDate = document.getElementById("mobileDateInput");
+      if (!mobDate.value) mobDate.value = todayISO();
+
+      ["calEmpSelect", "liqEmpSelect"].forEach(id => {
+        const sel = document.getElementById(id);
+        const prev = sel.value;
+        sel.innerHTML = state.employees.map(e => `<option value="${e.id}">${e.name} (C.I. ${e.ci})</option>`).join("");
+        if (prev && state.employees.some(e => e.id === prev)) sel.value = prev;
+      });
+    }
+
+    function renderCalendarModule() {
+      const empId = document.getElementById("calEmpSelect").value || state.employees[0]?.id;
+      const month = document.getElementById("calMonthInput").value || todayISO().slice(0, 7);
+      const fort = document.getElementById("calFortnightSelect").value || "1";
+      const dates = getDatesInPeriod(month, fort);
+      const empMarks = state.marks[empId] || {};
+
+      document.getElementById("calendarTableBody").innerHTML = dates.map(dt => {
+        const dObj = empMarks[dt] || {};
+        const c = computeDayHours(dObj, dt);
+        const satTag = c.info.isSaturday ? ` <span class="status-pill pill-sat">Sáb (${c.limit}h)</span>` : "";
+        return `
+          <tr>
+            <td><strong>${dt}</strong> (${c.info.dayName})${satTag}</td>
+            <td>${dObj.m1 || "-"}</td>
+            <td>${dObj.m2 || "-"}</td>
+            <td>${dObj.m3 || "-"}</td>
+            <td>${dObj.m4 || "-"}</td>
+            <td>${c.normalHours.toFixed(2)} h</td>
+            <td>${c.extraHours.toFixed(2)} h</td>
+            <td>${dObj.note || "-"}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function getPeriodKey(empId, month, fort) {
+      return `${empId}__${month}__Q${fort}`;
+    }
+
+    function getLiquidationData() {
+      const empId = document.getElementById("liqEmpSelect").value || state.employees[0]?.id;
+      const month = document.getElementById("liqMonthInput").value || todayISO().slice(0, 7);
+      const fort = document.getElementById("liqFortnightSelect").value || "1";
+      const emp = state.employees.find(e => e.id === empId);
+      const rateNorm = Number(state.rules.rateNormal) || 0;
+      const rateExtra = Number(state.rules.rateExtra) || 0;
+      const dates = getDatesInPeriod(month, fort);
+      const empMarks = state.marks[empId] || {};
+
+      let totalNorm = 0, totalExtra = 0, totalGs = 0;
+      const rows = dates.map(dt => {
+        const dObj = empMarks[dt] || {};
+        const c = computeDayHours(dObj, dt);
+        const subGs = Math.round(c.normalHours * rateNorm + c.extraHours * rateExtra);
+        totalNorm += c.normalHours;
+        totalExtra += c.extraHours;
+        totalGs += subGs;
+        return { dt, dObj, c, subGs };
+      });
+      return { empId, emp, month, fort, rateNorm, rateExtra, totalNorm, totalExtra, totalGs, rows };
+    }
+
+    function buildReceiptText() {
+      const d = getLiquidationData();
+      if (!d.emp) return "";
+      const pKey = getPeriodKey(d.empId, d.month, d.fort);
+      const st = state.payrollStatus[pKey] || {};
+      return [
+        `CARL PETERS — EXTRACTO DE LIQUIDACIÓN (PY 2026)`,
+        `Funcionario: ${d.emp.name} | C.I.: ${d.emp.ci}`,
+        `Sector: ${d.emp.sector}`,
+        `Período: ${d.month} — Quincena ${d.fort}`,
+        `Regla Horaria: Lun-Vie ${state.rules.weekdayNormalLimit}h | Sábado ${state.rules.saturdayNormalLimit}h`,
+        `--------------------------------------------------`,
+        `Total Horas Normales: ${d.totalNorm.toFixed(2)} h x Gs. ${d.rateNorm.toLocaleString("es-PY")} = Gs. ${Math.round(d.totalNorm * d.rateNorm).toLocaleString("es-PY")}`,
+        `Total Horas Extras:   ${d.totalExtra.toFixed(2)} h x Gs. ${d.rateExtra.toLocaleString("es-PY")} = Gs. ${Math.round(d.totalExtra * d.rateExtra).toLocaleString("es-PY")}`,
+        `TOTAL NETO A COBRAR: Gs. ${d.totalGs.toLocaleString("es-PY")}`,
+        st.paid ? `Estado: PAGADO (${st.payMethod || "Efectivo"} - ${st.paidAt || ""})` : `Estado: PENDIENTE DE PAGO`
+      ].join("
+");
+    }
+
+    function renderLiquidacion() {
+      const d = getLiquidationData();
+      if (!d.emp) return;
+
+      document.getElementById("liqDetailBody").innerHTML = d.rows.map(({ dt, dObj, c, subGs }) => {
+        const marksText = [dObj.m1, dObj.m2, dObj.m3, dObj.m4].filter(Boolean).join(" | ") || "Sin marcas";
+        const satBadge = c.info.isSaturday ? ` <span class="status-pill pill-sat">Sáb ${c.limit}h</span>` : "";
+        return `
+          <tr>
+            <td><strong>${dt}</strong> (${c.info.dayName})${satBadge}</td>
+            <td>${marksText}</td>
+            <td>${c.normalHours.toFixed(2)} h</td>
+            <td>${c.extraHours.toFixed(2)} h</td>
+            <td><strong>Gs. ${subGs.toLocaleString("es-PY")}</strong></td>
+            <td><button class="btn btn-sm btn-outline" onclick="clearDayMark('${d.empId}','${dt}')">Limpiar</button></td>
+          </tr>
+        `;
+      }).join("");
+
+      const pKey = getPeriodKey(d.empId, d.month, d.fort);
+      const pStatus = state.payrollStatus[pKey] || { closed: false, paid: false };
+      const badge = document.getElementById("liqStatusBadge");
+      if (pStatus.paid) {
+        badge.className = "status-pill pill-ok";
+        badge.textContent = `PAGADO (${pStatus.payMethod || ""})`;
+      } else if (pStatus.closed) {
+        badge.className = "status-pill pill-closed";
+        badge.textContent = "CERRADO";
+      } else {
+        badge.className = "status-pill pill-warn";
+        badge.textContent = "PENDIENTE";
+      }
+
+      document.getElementById("liqTotalsBox").innerHTML = `
+        <div class="kpi-box"><div class="kpi-label">Horas Normales</div><div class="kpi-val">${d.totalNorm.toFixed(2)} h</div></div>
+        <div class="kpi-box"><div class="kpi-label">Horas Extras (+50%)</div><div class="kpi-val">${d.totalExtra.toFixed(2)} h</div></div>
+        <div class="kpi-box"><div class="kpi-label">Total a Liquidar</div><div class="kpi-val">Gs. ${d.totalGs.toLocaleString("es-PY")}</div></div>
+      `;
+    }
+
+    function clearDayMark(empId, dt) {
+      const empIdCur = document.getElementById("liqEmpSelect").value;
+      const monthCur = document.getElementById("liqMonthInput").value;
+      const fortCur = document.getElementById("liqFortnightSelect").value;
+      const pKey = getPeriodKey(empIdCur, monthCur, fortCur);
+      if (state.payrollStatus[pKey]?.closed) {
+        return alert("Este período está CERRADO. Reábralo primero para modificar marcaciones.");
+      }
+      if (state.marks[empId]?.[dt]) {
+        delete state.marks[empId][dt];
+        saveLocalState(true);
+      }
+    }
+
+    function toggleClosePeriod() {
+      const empId = document.getElementById("liqEmpSelect").value;
+      const month = document.getElementById("liqMonthInput").value;
+      const fort = document.getElementById("liqFortnightSelect").value;
+      const pKey = getPeriodKey(empId, month, fort);
+      const cur = state.payrollStatus[pKey] || { closed: false, paid: false };
+      state.payrollStatus[pKey] = { ...cur, closed: !cur.closed };
+      saveLocalState(true);
+    }
+
+    function confirmRegisterPayment() {
+      const empId = document.getElementById("liqEmpSelect").value;
+      const month = document.getElementById("liqMonthInput").value;
+      const fort = document.getElementById("liqFortnightSelect").value;
+      const pKey = getPeriodKey(empId, month, fort);
+      const method = document.getElementById("payMethodInput").value;
+      const ref = document.getElementById("payRefInput").value.trim();
+      state.payrollStatus[pKey] = {
+        closed: true,
+        paid: true,
+        payMethod: method,
+        payRef: ref,
+        paidAt: new Date().toLocaleString("es-PY")
+      };
+      closeSubPanels();
+      saveLocalState(true);
+      alert("Pago registrado y período cerrado.");
+    }
+
+    function launchWhatsApp() {
+      const phone = document.getElementById("waPhoneInput").value.replace(/\D/g, "");
+      const text = encodeURIComponent(document.getElementById("waMessagePreview").value);
+      const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      window.open(url, "_blank");
+    }
+
+    // MOBILE APP FUNCTIONS
+    function switchEmployeePin() {
+      const pin = prompt("Ingrese el PIN del funcionario:");
+      if (!pin) return;
+      const found = state.employees.find(e => e.pin === pin.trim());
+      if (!found) return alert("PIN no encontrado.");
+      state.activeMobileEmpId = found.id;
+      saveLocalState(false);
+    }
+
+    function stepMobileDate(deltaDays) {
+      const input = document.getElementById("mobileDateInput");
+      const base = new Date((input.value || todayISO()) + "T12:00:00");
+      base.setDate(base.getDate() + deltaDays);
+      input.value = base.toISOString().slice(0, 10);
+      renderMobileApp();
+    }
+
+    function renderMobileApp() {
+      const emp = state.employees.find(e => e.id === state.activeMobileEmpId) || state.employees[0];
+      if (!emp) return;
+      document.getElementById("mobileEmpName").textContent = emp.name;
+      document.getElementById("mobileEmpMeta").textContent = `${emp.sector} • C.I. ${emp.ci}`;
+
+      const dt = document.getElementById("mobileDateInput").value || todayISO();
+      const dObj = (state.marks[emp.id]?.[dt]) || {};
+      const c = computeDayHours(dObj, dt);
+
+      const ruleBadge = document.getElementById("mobileDayRuleBadge");
+      if (c.info.isSaturday) {
+        ruleBadge.style.background = "#dbeafe";
+        ruleBadge.style.color = "#1e40af";
+        ruleBadge.textContent = `Sábado (${dt}): Jornada reducida de ${c.limit}h normales`;
+      } else {
+        ruleBadge.style.background = "#e0f2fe";
+        ruleBadge.style.color = "#0369a1";
+        ruleBadge.textContent = `${c.info.dayName} (${dt}): Jornada normal de ${c.limit}h`;
+      }
+
+      document.getElementById("mobNormHours").textContent = c.normalHours.toFixed(2) + " h";
+      document.getElementById("mobExtraHours").textContent = c.extraHours.toFixed(2) + " h";
+      document.getElementById("mobileNoteInput").value = dObj.note || "";
+
+      const labels = [
+        ["m1", "1. Entrada Mañana"],
+        ["m2", "2. Salida Mediodía"],
+        ["m3", "3. Entrada Tarde"],
+        ["m4", "4. Salida Tarde"]
+      ];
+
+      document.getElementById("mobileMarksList").innerHTML = labels.map(([k, lbl]) => `
+        <div style="display:flex;justify-content:space-between;padding:4px 6px;background:#f1f5f9;border-radius:6px;">
+          <span>${lbl}</span>
+          <strong>${dObj[k] || "--:--:--"}</strong>
+        </div>
+      `).join("");
+
+      const nextSlot = labels.find(([k]) => !dObj[k]);
+      document.getElementById("biometricPrompt").textContent = nextSlot
+        ? `Tocar huella para: ${nextSlot[1]}`
+        : "Jornada completa (4/4 marcas registradas)";
+    }
+
+    function punchBiometric() {
+      const emp = state.employees.find(e => e.id === state.activeMobileEmpId) || state.employees[0];
+      if (!emp) return;
+      const dt = document.getElementById("mobileDateInput").value || todayISO();
+      const month = dt.slice(0, 7);
+      const fort = Number(dt.slice(8, 10)) <= 15 ? "1" : "2";
+      if (state.payrollStatus[getPeriodKey(emp.id, month, fort)]?.closed) {
+        return alert("Este período ya fue cerrado por administración.");
+      }
+
+      if (!state.marks[emp.id]) state.marks[emp.id] = {};
+      if (!state.marks[emp.id][dt]) state.marks[emp.id][dt] = {};
+      const dObj = state.marks[emp.id][dt];
+      const nextKey = ["m1", "m2", "m3", "m4"].find(k => !dObj[k]);
+      if (!nextKey) return alert("Las 4 marcaciones de este día ya están registradas.");
+
+      dObj[nextKey] = nowHMS();
+      saveLocalState(true);
+    }
+
+    function saveMobileNote() {
+      const emp = state.employees.find(e => e.id === state.activeMobileEmpId) || state.employees[0];
+      if (!emp) return;
+      const dt = document.getElementById("mobileDateInput").value || todayISO();
+      if (!state.marks[emp.id]) state.marks[emp.id] = {};
+      if (!state.marks[emp.id][dt]) state.marks[emp.id][dt] = {};
+      state.marks[emp.id][dt].note = document.getElementById("mobileNoteInput").value;
+      saveLocalState(true);
+    }
+
+    // AUTO-CONNECT TO EMBEDDED FIREBASE FIRESTORE ON STARTUP
+    function initDefaultFirebase(silent = true) {
+      document.getElementById("embeddedFirebaseSummary").textContent = JSON.stringify(DEFAULT_FIREBASE_CONFIG, null, 2);
+      const badge = document.getElementById("liveStatusBadge");
+      try {
+        if (!window.firebase) {
+          badge.className = "badge-live badge-local";
+          badge.innerHTML = '<span class="dot"></span> Sin red (Modo Offline)';
+          return;
+        }
+        const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(DEFAULT_FIREBASE_CONFIG);
+        dbFirestore = app.firestore();
+        if (unsubscribeFirestore) unsubscribeFirestore();
+
+        const docRef = dbFirestore.collection("carl_peters").doc("system_state_2026");
+        unsubscribeFirestore = docRef.onSnapshot((snap) => {
+          badge.className = "badge-live";
+          badge.innerHTML = '<span class="dot"></span> En Vivo (hph-transporte-sa)';
+          if (snap.exists) {
+            const remote = snap.data();
+            state = {
+              ...defaultState(),
+              ...remote,
+              adminAuth: { ...defaultState().adminAuth, ...(remote.adminAuth || {}) },
+              rules: { ...defaultState().rules, ...(remote.rules || {}) }
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            renderAll();
+          } else {
+            docRef.set(state, { merge: true }).catch(() => {});
+          }
+        }, (err) => {
+          badge.className = "badge-live badge-local";
+          badge.innerHTML = '<span class="dot"></span> Revisar reglas Firestore';
+          if (!silent) alert("Error Firestore: " + err.message);
+        });
+
+        if (!silent) alert("Reconectado en vivo a Firestore (hph-transporte-sa).");
+      } catch (err) {
+        badge.className = "badge-live badge-local";
+        badge.innerHTML = '<span class="dot"></span> Modo Local';
+        if (!silent) alert("Error inicializando Firebase: " + err.message);
+      }
+    }
+
+    setInterval(() => {
+      document.getElementById("mobileClock").textContent = "Hora del dispositivo: " + nowHMS();
+    }, 1000);
+
+    
+    // DETECCIÓN AUTOMÁTICA DE CELULAR O APK INSTALADA -> ABRE DIRECTO EN MODO SOLO APP APK
+    function detectAndApplyDeviceMode() {
+      const params = new URLSearchParams(window.location.search);
+      const forcedMode = params.get("mode");
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isNarrowScreen = window.innerWidth <= 820;
+
+      if (forcedMode === "admin") {
+        document.body.classList.remove("is-mobile-apk");
+        setViewLayout("admin");
+      } else if (forcedMode === "mobile" || isMobileUA || isNarrowScreen || isStandalone) {
+        document.body.classList.add("is-mobile-apk");
+        setViewLayout("mobile");
+      } else {
+        document.body.classList.remove("is-mobile-apk");
+        setViewLayout("both");
+      }
+    }
+
+    detectAndApplyDeviceMode();
+    renderAll();
+    initDefaultFirebase(true);
+    document.getElementById("mobileClock").textContent = "Hora del dispositivo: " + nowHMS();
+  </script>
+</body>
+</html>
