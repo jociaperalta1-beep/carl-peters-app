@@ -1,37 +1,101 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>CARL PETERS — Asistencia & Nómina PY 2026</title><meta name="theme-color" content="#0f172a"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script>
+(function(){
+  function isExtErr(msg, stack, src) {
+    var hay = String(msg || '') + ' ' + String(stack || '') + ' ' + String(src || '');
+    return /chrome-extension:\/\/|moz-extension:\/\/|safari-extension:\/\/|MetaMask/i.test(hay);
+  }
+  window.addEventListener('error', function(e) {
+    if (isExtErr(e && e.message, e && e.error && e.error.stack, e && e.filename)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
+  window.addEventListener('unhandledrejection', function(e) {
+    var r = e && e.reason;
+    if (isExtErr(r && r.message || r, r && r.stack, '')) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
+  var origErr = console.error;
+  console.error = function() {
+    for (var i = 0; i < arguments.length; i++) {
+      var a = arguments[i];
+      if (isExtErr(a && a.message || a, a && a.stack, '')) return;
+    }
+    return origErr.apply(console, arguments);
+  };
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>CARL PETERS — Asistencia & Nómina PY 2026</title>
+<meta name="description" content="Sistema de marcación biométrica de asistencia en obra, liquidación laboral Paraguay, gastos inmutables, reportes PDF y ubicación GPS en tiempo real (Paraguay 2026)."/>
+<meta property="og:title" content="CARL PETERS — Asistencia & Nómina PY 2026"/>
+<meta property="og:description" content="Sistema de marcación biométrica de asistencia en obra, liquidación laboral Paraguay, gastos inmutables, reportes PDF y ubicación GPS en tiempo real (Paraguay 2026)."/>
+<meta name="theme-color" content="#0f172a"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="CARL PETERS"/>
+<link rel="apple-touch-icon" href="/icon-192.png"/>
+<link rel="icon" type="image/png" href="/icon-192.png"/>
 <style>
 :root{--bg:#f1f5f9;--card:#fff;--side:#0f172a;--pri:#0f172a;--acc:#2563eb;--ok:#16a34a;--warn:#d97706;--err:#dc2626;--mut:#64748b;--bdr:#e2e8f0}
 *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif}
 body{background:var(--bg);color:var(--pri);font-size:14px}.hidden{display:none!important}
-.btn{border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.btn{border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;text-decoration:none}
 .btn-pri{background:var(--acc);color:#fff}.btn-ok{background:var(--ok);color:#fff}.btn-warn{background:var(--warn);color:#fff}
 .btn-err{background:var(--err);color:#fff}.btn-dark{background:#1e293b;color:#fff}.btn-out{background:#fff;color:var(--pri);border:1px solid var(--bdr)}
+.btn-sm{padding:5px 8px;font-size:11px}
 .topbar{background:#090d16;color:#fff;padding:9px 14px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;position:sticky;top:0;z-index:60}
-.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}.logo-img{height:28px;max-width:92px;object-fit:contain;background:#fff;border-radius:6px;padding:2px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}
+.logo-img{height:30px;max-width:92px;object-fit:contain;background:#fff;border-radius:6px;padding:2px;display:block}
+.logo-pick-btn{position:relative;border:none;background:transparent;padding:0;cursor:pointer;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .12s,opacity .12s}
+.logo-pick-btn:active{transform:scale(.94)}
+.logo-pick-btn:hover{opacity:.92}
+.logo-cam{position:absolute;right:-4px;bottom:-4px;width:16px;height:16px;border-radius:999px;background:#2563eb;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;border:1.5px solid #0f172a;line-height:1}
 .b-on{background:rgba(22,163,74,.2);color:#4ade80;border:1px solid rgba(74,222,128,.4);padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
 .b-off{background:rgba(217,119,6,.2);color:#fbbf24;border:1px solid rgba(251,191,36,.4);padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.pill-ok{display:inline-block;background:#dcfce7;color:#15803d;border:1px solid #86efac;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.pill-warn{display:inline-block;background:#fef3c7;color:#b45309;border:1px solid #fcd34d;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.pill-blue{display:inline-block;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.pill-lock{display:inline-block;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700}
 .ws{display:grid;grid-template-columns:1fr;min-height:calc(100vh - 46px)}
 .lock-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;background:#0f172a;min-height:calc(100vh - 46px)}
 .lock-box{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:350px;display:grid;gap:10px}
 .admin-wrap{display:flex;min-height:calc(100vh - 46px);width:100%}
-.side{width:210px;background:var(--side);color:#cbd5e1;padding:10px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.side{width:215px;background:var(--side);color:#cbd5e1;padding:10px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
 @media(max-width:780px){.admin-wrap{flex-direction:column}.side{width:100%;flex-direction:row;flex-wrap:wrap}}
 .nav{width:100%;text-align:left;background:transparent;color:#cbd5e1;border:none;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700}
 @media(max-width:780px){.nav{width:auto}}.nav.active,.nav:hover{background:var(--acc);color:#fff}.main{flex:1;padding:14px;overflow-x:auto}
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:12px;margin-bottom:10px}
 .card-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bdr)}
-.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px}
+.sub-nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.sub-btn{border:1px solid var(--bdr);background:#fff;color:var(--pri);padding:8px 12px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer}
+.sub-btn.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+.calc-col{background:#f8fafc;border:1px solid var(--bdr);border-radius:10px;padding:12px;display:grid;gap:6px}
+.calc-total-box{background:#0f172a;color:#fff;border-radius:12px;padding:14px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-top:10px}
+.collapsible-head{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:4px 0}
+.collapsible-head:hover strong{color:var(--acc)}
+.stat-card{background:#f8fafc;border:1px solid var(--bdr);border-radius:10px;padding:10px;text-align:center}
+.stat-val{font-size:17px;font-weight:900;margin-top:3px}
+.receipt-bar{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr)}
 label{display:block;font-size:11px;font-weight:700;color:#334155;margin-bottom:3px}
 input,select{width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:#fff}
+input[type="checkbox"]{width:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px 8px;border-bottom:1px solid var(--bdr);text-align:left}th{background:#f8fafc}
 .gps-bar{background:#0f172a;color:#fff;padding:8px 12px;border-radius:12px 12px 0 0;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px}
 .gps-bar select,.gps-bar input{background:#1e293b;color:#fff;border:1px solid #334155;width:auto;padding:5px 8px;font-size:12px}
-#gpsMap{width:100%;height:calc(100vh - 130px);border-radius:0 0 12px 12px;border:1px solid var(--bdr);z-index:1}
+#gpsMap{width:100%;height:calc(100vh - 130px);min-height:420px;border-radius:0 0 12px 12px;border:1px solid var(--bdr);z-index:1}
+.leaflet-tooltip.cp-gps-tip{background:#0f172a;color:#fff;border:1px solid #38bdf8;border-radius:8px;padding:3px 7px;font-size:11px;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.35);white-space:nowrap}
+.leaflet-tooltip-top.cp-gps-tip::before{border-top-color:#0f172a}
 .mob-col{background:#e2e8f0;padding:12px;display:flex;justify-content:center}.phone{width:100%;max-width:360px;background:#0f172a;border-radius:28px;padding:10px}
 .screen{position:relative;background:#f8fafc;border-radius:20px;overflow:hidden;min-height:640px;display:flex;flex-direction:column}
 .lock-ico{width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(30,41,59,.9);color:#fff;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -42,113 +106,693 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px 8px;b
 .tabs-2{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#e2e8f0;padding:3px;border-radius:8px}
 .tab-btn{border:none;background:transparent;padding:7px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}.tab-btn.active{background:var(--acc);color:#fff}
 .fp-zone{margin-top:auto;background:#fff;border:1px solid var(--bdr);border-radius:14px;padding:12px;text-align:center}
-.fp-btn{width:84px;height:84px;border-radius:50%;border:3px solid var(--acc);background:#0f172a;color:#38bdf8;margin:8px auto;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation}
-.fp-btn.scan{border-color:var(--ok);color:#4ade80;transform:scale(.95)}
-@media(max-width:900px){.topbar,#adminLock,#adminPanel{display:none!important}.ws{grid-template-columns:1fr!important;min-height:100vh!important}}
+.fp-btn{width:84px;height:84px;border-radius:50%;border:3px solid var(--acc);background:#0f172a;color:#38bdf8;margin:8px auto;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;transition:transform .12s,border-color .12s,color .12s}
+.fp-btn.scan{border-color:var(--ok);color:#4ade80;transform:scale(.93)}
+.cp-toast-host{position:fixed;bottom:16px;right:16px;z-index:220;display:flex;flex-direction:column;gap:6px;max-width:320px;pointer-events:none}
+.cp-toast{padding:10px 14px;border-radius:10px;color:#fff;font-size:12px;font-weight:700;box-shadow:0 8px 24px rgba(15,23,42,.28);transition:opacity .25s}
+.cp-toast-ok{background:#16a34a}.cp-toast-err{background:#dc2626}.cp-toast-info{background:#1e293b}
+.cp-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.68);z-index:190;display:flex;align-items:center;justify-content:center;padding:16px}
+.cp-modal{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:420px;max-height:92vh;overflow-y:auto;display:grid;gap:10px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
+.offline-bar{position:fixed;bottom:14px;left:14px;z-index:210;background:#d97706;color:#fff;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.22);display:flex;align-items:center;gap:6px}
+.mob-float-bar{display:none;background:#090d16;color:#fff;padding:6px 10px;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;border-bottom:1px solid #1e293b}
+body.mob-only .mob-float-bar{display:flex}
+@media(max-width:900px){.topbar,#adminLock,#adminPanel,.mob-float-bar{display:none!important}.ws{grid-template-columns:1fr!important;min-height:100vh!important}}
+@media(display-mode:standalone){.mob-float-bar{display:none!important}}
 body.mob-only .topbar,body.mob-only #adminLock,body.mob-only #adminPanel{display:none!important}
 body.mob-only .ws{grid-template-columns:1fr!important;min-height:100vh!important}
 body.mob-only .mob-col{padding:0!important;background:#f8fafc!important;min-height:100vh!important}
-body.mob-only .phone{max-width:100%!important;border-radius:0!important;padding:0!important;flex:1;display:flex}
+body.mob-only .phone{max-width:100%!important;border-radius:0!important;padding:0!important;flex:1;display:flex;flex-direction:column}
 body.mob-only .screen{border-radius:0!important;min-height:100vh!important;flex:1}
-@media print{.topbar,.side,.mob-col,.no-print{display:none!important}.ws{display:block}}
+.qr-box{display:flex;flex-direction:column;align-items:center;gap:6px;background:#f8fafc;border:1px solid var(--bdr);border-radius:12px;padding:12px}
+#printReceiptSheet{display:none}
+.rec-sheet{background:#fff;padding:16px}
+.rec-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.rec-sigs{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:44px;text-align:center;font-size:12px}
+.rec-sig-line{border-top:1.5px solid #0f172a;margin-bottom:6px}
+.rank-grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;align-items:stretch}
+@media(max-width:960px){.rank-grid{grid-template-columns:1fr}}
+.rank-pick-list{display:grid;gap:6px;max-height:310px;overflow-y:auto;padding-right:4px;margin-top:8px}
+.rank-pick-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--bdr);border-radius:8px;background:#f8fafc;cursor:pointer;font-size:12px;font-weight:600;transition:border-color .12s,background .12s}
+.rank-pick-item:hover{background:#eff6ff;border-color:#93c5fd}
+.rank-pick-item input[type="checkbox"]{width:16px;height:16px;accent-color:var(--acc);cursor:pointer;flex-shrink:0}
+.rank-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;flex-shrink:0;vertical-align:middle}
+.rank-chart-wrap{display:flex;align-items:flex-end;gap:14px;overflow-x:auto;padding:18px 12px 10px;min-height:270px;background:linear-gradient(180deg,#f8fafc 0%,#fff 100%);border:1px solid var(--bdr);border-radius:10px}
+.rank-bar-col{flex:1 0 92px;max-width:140px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.rank-bar-val{font-size:11px;font-weight:800;color:#0f172a;text-align:center;white-space:nowrap}
+.rank-bar-track{width:100%;display:flex;align-items:flex-end;justify-content:center;border-bottom:2px solid #cbd5e1;padding:0 10px}
+.rank-bar-fill{width:100%;max-width:58px;border-radius:8px 8px 0 0;transition:height .25s ease;box-shadow:0 4px 10px rgba(15,23,42,.12)}
+.rank-bar-name{font-size:11px;font-weight:700;color:#334155;text-align:center;line-height:1.25;word-break:break-word;min-height:28px}
+.rank-pos{display:inline-flex;align-items:center;justify-content:center;min-width:30px;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:800;background:#e2e8f0;color:#334155}
+.rank-pos-1{background:#fef3c7;color:#b45309;border:1px solid #f59e0b}
+.rank-pos-2{background:#e2e8f0;color:#1e293b;border:1px solid #94a3b8}
+.rank-pos-3{background:#ffedd5;color:#c2410c;border:1px solid #fb923c}
+.rank-mode-chk{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--bdr);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-weight:700;margin:0}
+.rank-mode-chk.active{background:#eff6ff;border-color:var(--acc);color:var(--acc)}
+.mob-remembered-card{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#fff;border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.mob-remembered-avatar{width:40px;height:40px;border-radius:50%;background:var(--acc);color:#fff;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mob-switch-link{background:none;border:none;color:#64748b;font-size:11px;font-weight:700;text-decoration:underline;cursor:pointer;padding:4px;text-align:center;margin-top:2px}
+.mob-switch-link:hover{color:#dc2626}
+.pill-gray{display:inline-block;background:#e2e8f0;color:#475569;border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.ips-touch-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.ips-touch-btn{border:2px solid #cbd5e1;background:#f8fafc;color:#475569;border-radius:12px;padding:12px 8px;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .14s;touch-action:manipulation}
+.ips-touch-btn.active-con{background:#dcfce7;color:#15803d;border-color:#16a34a;box-shadow:0 3px 10px rgba(22,163,74,.18)}
+.ips-touch-btn.active-sin{background:#e2e8f0;color:#1e293b;border-color:#64748b;box-shadow:0 3px 10px rgba(100,116,139,.15)}
+.pay-ips-edit{background:#fef2f2;border-color:#fecaca}
+.pay-ips-input{width:140px;text-align:right;font-weight:800;color:#dc2626;border-color:#fca5a5;background:#fff;padding:5px 8px;font-size:13px}
+.cal-cell{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.cal-edit-ico{border:1px solid #cbd5e1;background:#f8fafc;color:#475569;border-radius:5px;padding:1px 5px;font-size:11px;line-height:1.2;cursor:pointer;transition:all .12s}
+.cal-edit-ico:hover{background:var(--acc);color:#fff;border-color:var(--acc)}
+.cal-inline-edit{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.cal-time-in{width:108px;padding:3px 5px;font-size:12px;font-weight:700;border:1.5px solid var(--acc);border-radius:6px;background:#fff;color:#0f172a}
+.cal-mini-btn{border:none;border-radius:5px;padding:3px 6px;font-size:11px;font-weight:800;cursor:pointer;line-height:1.1}
+.brand-home-btn{background:transparent;border:none;color:#fff;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:800;font-size:14px;padding:2px 8px 2px 2px;border-radius:8px;transition:background .15s,transform .12s}
+.brand-home-btn:hover{background:rgba(255,255,255,.1)}
+.brand-home-btn:active{transform:scale(.97)}
+.cover-stage{position:relative;width:100%;height:calc(100vh - 76px);min-height:520px;border-radius:16px;overflow:hidden;border:1px solid #d5e3f8;background:radial-gradient(circle at 15% 18%,rgba(37,99,235,.13) 0%,transparent 46%),radial-gradient(circle at 86% 82%,rgba(30,64,175,.15) 0%,transparent 50%),linear-gradient(135deg,#ffffff 0%,#f5f9ff 42%,#e6f0ff 78%,#d8e8ff 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 28px rgba(15,23,42,.06)}
+.cover-stage::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(30,64,175,.07) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}
+.cover-marquee-title{position:absolute;top:50%;left:0;white-space:nowrap;font-family:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,sans-serif;font-size:clamp(42px,6.2vw,84px);font-weight:900;letter-spacing:.14em;color:#0f2557;background:linear-gradient(135deg,#0b1d45 0%,#16367a 55%,#1e40af 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 8px 22px rgba(15,37,87,.14));user-select:none;will-change:transform}
+.mob-marks-box{margin:0;padding:8px 10px;font-size:11.5px;display:grid;gap:2px}
+.mob-mark-row{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:3px 4px;border-bottom:1px solid #f1f5f9;max-width:295px;width:100%;margin:0 auto}
+.mob-mark-row:last-child{border-bottom:none}
+.mob-mark-row.extra{background:#fffbeb;border-radius:6px;border-bottom:1px solid #fde68a;margin-top:2px}
+.mob-mark-lbl{color:#475569;font-weight:700;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mob-mark-val{font-size:11.5px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fp-btn.locked{border-color:#94a3b8;background:#334155;color:#cbd5e1;opacity:.6;cursor:not-allowed}
+.mob-extra-btn{width:100%;justify-content:center;padding:9px 12px;font-size:12px;margin-top:8px;background:#d97706;color:#fff;border-radius:10px;box-shadow:0 4px 12px rgba(217,119,6,.25)}
+.mob-extra-btn:hover{background:#b45309}
+.mob-night-banner{background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:9px;padding:6px 8px;font-size:11px;font-weight:700;text-align:center;line-height:1.35}
+.mh-card{background:#fff;border:1px solid var(--bdr);border-radius:10px;padding:8px;font-size:11px;display:grid;gap:6px}
+.mh-amber-box{background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:7px 8px;display:grid;gap:3px}
+.mh-total-bar{background:#0f172a;color:#fff;border-radius:7px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800}
+@media print{
+  .topbar,.side,.mob-col,.no-print,.cp-toast-host,.cp-modal-bg,.offline-bar,.mob-float-bar{display:none!important}
+  .ws{display:block}
+  body.printing-receipt #ws{display:none!important}
+  body.printing-receipt #printReceiptSheet{display:block!important}
+}
 </style>
 </head>
 <body>
+<input id="mobLogoPicker" type="file" accept="image/*" class="hidden" onchange="uploadLogo(event)"/>
+
 <div class="topbar">
-  <div class="brand"><img id="topLogo" class="logo-img hidden" alt="Logo"/><span>CARL PETERS</span><span id="fbBadge" class="b-off">Conectando a Firestore...</span></div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap">
-    <button class="btn btn-out" onclick="setLayout('admin')">Solo Admin</button>
-    <button class="btn btn-out" onclick="setLayout('both')">Split Web + APK</button>
-    <button class="btn btn-out" onclick="setLayout('mobile')">Solo APK</button>
+  <div class="brand">
+    <button type="button" class="brand-home-btn" onclick="openAdminCover()" title="Volver a la portada animada">
+      <img id="topLogo" src="/icon-192.png" class="logo-img" alt="Logo CARL PETERS"/>
+      <span>CARL PETERS</span>
+    </button>
+    <span id="fbBadge" class="b-off">Conectando a Firestore...</span>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <button id="googleAuthBtn" class="btn btn-dark" onclick="handleGoogleAuthToggle()">⏳ Verificando sesión...</button>
+    <button id="btnPwaTop" class="btn btn-warn" onclick="openPwaShareModal()">📲 Instalar / Compartir APK</button>
+    <button id="btnModeAdmin" class="btn btn-out" onclick="setLayout('admin')">Solo Admin</button>
+    <button id="btnModeBoth" class="btn btn-pri" onclick="setLayout('both')">Split Web + APK</button>
+    <button id="btnModeMobile" class="btn btn-out" onclick="setLayout('mobile')">Solo APK</button>
   </div>
 </div>
+
+<div id="mobOnlyFloatBar" class="mob-float-bar">
+  <span style="font-size:11px;font-weight:700;color:#cbd5e1">Vista previa Solo APK (Teléfono)</span>
+  <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <button type="button" class="btn btn-warn" style="padding:5px 9px;font-size:11px" onclick="openPwaShareModal()">📲 Instalar / Compartir</button>
+    <button type="button" class="btn btn-pri" style="padding:5px 9px;font-size:11px" onclick="setLayout('both')">← Volver a Split Web + APK</button>
+    <button type="button" class="btn btn-dark" style="padding:5px 9px;font-size:11px" onclick="setLayout('admin')">Solo Admin</button>
+  </div>
+</div>
+
 <div id="ws" class="ws">
   <section id="adminLock" class="lock-wrap">
     <form class="lock-box" onsubmit="loginAdmin(event)">
       <h3 style="font-weight:800">CARL PETERS — Admin</h3>
+      <div id="admGoogleStatus" style="font-size:11px;color:#64748b">Inicia sesión con Google para sincronizar en vivo con Firestore.</div>
+      <button type="button" class="btn btn-ok" style="justify-content:center;padding:10px" onclick="triggerGoogleSignIn()">🔐 Conectar Cuenta Google (En Vivo)</button>
       <div><label>Usuario (opcional)</label><input id="admUser" value="admin" placeholder="admin"/></div>
       <div><label>Clave / PIN</label><input id="admPass" type="password" placeholder="5722677 o 2026" required/></div>
-      <button class="btn btn-pri" type="submit" style="justify-content:center;padding:10px">Entrar</button>
+      <button class="btn btn-pri" type="submit" style="justify-content:center;padding:10px">Entrar con PIN</button>
     </form>
   </section>
+
   <section id="adminPanel" class="admin-wrap hidden">
     <aside class="side">
-      <button class="nav active" data-tab="hoy" onclick="openTab('hoy')">🕒 Asistencia Hoy</button>
-      <button class="nav" data-tab="rrhh" onclick="openTab('rrhh')">👥 RRHH & Empleados</button>
-      <button class="nav" data-tab="cal" onclick="openTab('cal')">📅 Calendario & PDF</button>
+      <button class="nav" data-tab="hoy" onclick="openTab('hoy')">🕒 Asistencia Hoy</button>
+      <button class="nav" data-tab="rrhh" onclick="openTab('rrhh')">💼 Recursos Humanos</button>
+      <button class="nav" data-tab="emp" onclick="openTab('emp')">👥 Empleados</button>
+      <button class="nav" data-tab="cal" onclick="openTab('cal')">📅 Calendario &amp; PDF</button>
       <button class="nav" data-tab="gps" onclick="openTab('gps')">🛰️ Ubicación GPS</button>
+      <button class="nav" data-tab="rank" onclick="openTab('rank')">🏆 Ranking &amp; Gráficas</button>
       <button class="nav" data-tab="cfg" onclick="openTab('cfg')">⚙️ Configuración</button>
       <button class="nav" style="margin-top:auto;color:#fca5a5" onclick="logoutAdmin()">🔒 Salir</button>
     </aside>
+
     <main class="main">
-      <div id="tab-hoy" class="adm-tab">
+      <!-- PORTADA ANIMADA INICIAL -->
+      <div id="tab-portada" class="adm-tab">
+        <div id="coverStage" class="cover-stage">
+          <div id="coverMarqueeTitle" class="cover-marquee-title">CARL PETERS</div>
+        </div>
+      </div>
+
+      <!-- TAB 1: ASISTENCIA HOY -->
+      <div id="tab-hoy" class="adm-tab hidden">
         <div class="card">
           <div class="card-top"><strong>Asistencia Hoy (Tiempo Real)</strong><span id="hoyCount" style="font-size:12px;color:var(--mut)"></span></div>
-          <table><thead><tr><th>Empleado</th><th>C.I.</th><th>Sector</th><th>Ent. 1</th><th>Sal. 2</th><th>Ent. 3</th><th>Sal. 4</th><th>Normales</th><th>Extras</th></tr></thead><tbody id="hoyBody"></tbody></table>
+          <div style="overflow-x:auto">
+            <table><thead><tr id="hoyHeadRow"><th>Empleado</th><th>C.I.</th><th>Sector</th><th>Ent. 1</th><th>Sal. 2</th><th>Ent. 3</th><th>Sal. 4</th><th>Normales</th><th>Extras</th></tr></thead><tbody id="hoyBody"></tbody></table>
+          </div>
         </div>
       </div>
+
+      <!-- TAB 2: RECURSOS HUMANOS (LIQUIDACIÓN, INDEMNIZACIÓN, EXTRACTOS, GASTOS INMUTABLES) -->
       <div id="tab-rrhh" class="adm-tab hidden">
-        <div class="card">
-          <div class="card-top"><strong>Registrar Funcionario</strong></div>
-          <div class="grid-4">
-            <div><label>Nombre</label><input id="newEmpName" placeholder="Nombre y Apellido"/></div>
-            <div><label>C.I.</label><input id="newEmpCi" placeholder="4.123.456"/></div>
-            <div><label>Sector</label><input id="newEmpSec" value="Ganado"/></div>
-            <div><label>PIN (4 dígitos)</label><input id="newEmpPin" maxlength="4" value="1234"/></div>
-          </div>
-          <div style="margin-top:8px;display:flex;justify-content:flex-end"><button class="btn btn-pri" onclick="saveNewEmployee()">+ Guardar</button></div>
+        <div class="sub-nav">
+          <button type="button" class="sub-btn active" data-rsub="pago" onclick="openRrhhSub('pago')">💰 Pago de Salario</button>
+          <button type="button" class="sub-btn" data-rsub="legal" onclick="openRrhhSub('legal')">⚖️ Liquidación Legal / Indemnización</button>
+          <button type="button" class="sub-btn" data-rsub="ext" onclick="openRrhhSub('ext')">📊 Extractos por Empleado / Sector</button>
+          <button type="button" class="sub-btn" data-rsub="gastos" onclick="openRrhhSub('gastos')">🧾 Gastos Manuales Inmutables</button>
         </div>
-        <div class="card">
-          <div class="card-top"><strong>Empleados Registrados</strong></div>
-          <table><thead><tr><th>Nombre</th><th>C.I.</th><th>Sector</th><th>PIN</th><th>Acciones</th></tr></thead><tbody id="empBody"></tbody></table>
-          <div id="empEditBox" class="card hidden" style="margin-top:12px;background:#f8fafc">
-            <div class="card-top"><strong>Editar Empleado</strong><button class="btn btn-err" onclick="closeEmpEdit()">✕</button></div>
-            <div class="grid-4">
-              <div><label>Nombre</label><input id="edName"/></div><div><label>C.I.</label><input id="edCi"/></div>
-              <div><label>Sector</label><input id="edSec"/></div><div><label>PIN (4 dígitos)</label><input id="edPin" maxlength="4"/></div>
+
+        <!-- RRHH SUB 1: PAGO DE SALARIO -->
+        <div id="rsub-pago" class="rrhh-sub">
+          <div class="card">
+            <div class="card-top">
+              <strong>Liquidación de Salario por Horas (Código Laboral PY)</strong>
+              <span id="payPeriodBadge" class="pill-blue">En espera (0h)</span>
             </div>
-            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-ok" onclick="applyEmpEdit()">Guardar Cambios</button>
-              <button class="btn btn-warn" onclick="resetEmpPin()">Resetear PIN</button>
-              <button class="btn btn-err" onclick="deleteEmp()">Eliminar</button>
+            <div class="grid-4" style="align-items:end">
+              <div>
+                <label>Funcionario / Chofer</label>
+                <select id="payEmp" onchange="onPayEmpChange()"></select>
+              </div>
+              <div>
+                <label>Monto Hora Normal (Gs.)</label>
+                <input id="payRate" type="number" min="0" step="500" value="0" oninput="recalcSalaryLive()"/>
+              </div>
+              <div>
+                <label>% Hora Extra (después de 8h)</label>
+                <input id="payOtPct" type="number" min="0" max="500" step="5" value="50" oninput="recalcSalaryLive()"/>
+              </div>
+              <div>
+                <button type="button" class="btn btn-pri" style="width:100%;justify-content:center;padding:8px 10px" onclick="pullHoursSinceLastClose()">⏱️ Estirar Horas desde Último Cierre</button>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#475569">
+              <div id="payRangeInfo">Selecciona un funcionario y presiona "Estirar Horas desde Último Cierre" para cargar desde Firestore.</div>
+              <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer">
+                <input id="payApplyIps" type="checkbox" onchange="onPayApplyIpsToggle()"/>
+                <span>Aplicar descuento IPS</span>
+              </label>
+            </div>
+
+            <!-- CUADRO DE CÁLCULO VISUAL EN VIVO LADO A LADO -->
+            <div class="grid-2" style="margin-top:12px">
+              <div class="calc-col">
+                <div style="font-size:11px;font-weight:800;color:#475569;text-transform:uppercase">Horas Normales</div>
+                <div style="display:flex;justify-content:space-between"><span>Horas acumuladas:</span><strong id="payNormHrs">00h 00m 00s (0.00 h)</strong></div>
+                <div style="display:flex;justify-content:space-between"><span>Valor Hora Normal:</span><strong id="payNormUnit">0 Gs.</strong></div>
+                <div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid var(--bdr);font-size:14px">
+                  <span>Subtotal Normal:</span><strong id="payNormSub" style="color:#0f172a">0 Gs.</strong>
+                </div>
+              </div>
+              <div class="calc-col" style="background:#eff6ff;border-color:#bfdbfe">
+                <div style="font-size:11px;font-weight:800;color:#1d4ed8;text-transform:uppercase">Horas Extras (+<span id="payOtPctLbl">50</span>%)</div>
+                <div style="display:flex;justify-content:space-between"><span>Horas extras acumuladas:</span><strong id="payExtHrs">00h 00m 00s (0.00 h)</strong></div>
+                <div style="display:flex;justify-content:space-between"><span>Valor Hora Extra:</span><strong id="payExtUnit" style="color:#1d4ed8">0 Gs.</strong></div>
+                <div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid #bfdbfe;font-size:14px">
+                  <span>Subtotal Extras:</span><strong id="payExtSub" style="color:#1d4ed8">0 Gs.</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- FILA SALDO ANTERIOR + IPS -->
+            <div class="grid-2" style="margin-top:8px">
+              <div class="calc-col" style="padding:9px 12px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:700">Saldo Anterior:</span>
+                <strong id="payPrevBal" style="font-size:14px">0 Gs.</strong>
+              </div>
+              <div class="calc-col pay-ips-edit" style="padding:9px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-weight:800;color:#dc2626">Descuento IPS (Gs.):</span>
+                  <span id="payIpsBadge" class="pill-gray">SIN IPS</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input id="payIpsInput" type="number" min="0" step="1000" value="0" class="pay-ips-input" oninput="onPayIpsManualInput()" aria-label="Monto Descuento IPS en guaraníes"/>
+                  <strong id="payIpsVal" style="color:#dc2626;font-size:13px;white-space:nowrap">0 Gs.</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- SUMA ACTIVA EN TIEMPO REAL -->
+            <div class="calc-total-box">
+              <div>
+                <div style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Suma Activa en Tiempo Real (Total Neto a Pagar)</div>
+                <div id="payNetTotal" style="font-size:24px;font-weight:900;color:#4ade80">0 Gs.</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button type="button" class="btn btn-out" style="padding:10px 14px;font-size:13px" onclick="clearSalaryForm()">🧹 Limpiar</button>
+                <button type="button" class="btn btn-ok" style="padding:11px 16px;font-size:13px" onclick="liquidateAndClosePeriod()">✅ Liquidar y Cerrar Período</button>
+              </div>
+            </div>
+
+            <div class="receipt-bar">
+              <button type="button" class="btn btn-dark" onclick="printSalaryReceipt()">🖨️ Imprimir Recibo</button>
+              <button type="button" class="btn btn-pri" onclick="downloadSalaryPdf()">📄 Convertir / Descargar PDF</button>
+              <a id="payWaSupport" class="btn btn-ok" href="#" target="_blank" rel="noopener noreferrer">💬 WhatsApp Soporte (+595 971 417036)</a>
+              <a id="payWaAny" class="btn btn-out" href="#" target="_blank" rel="noopener noreferrer">📲 Compartir por WhatsApp</a>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-top"><strong>Últimas Liquidaciones Cerradas</strong></div>
+            <table><thead><tr><th>Período</th><th>Empleado</th><th>Sector</th><th>Normales</th><th>Extras</th><th>IPS</th><th>Total Neto</th></tr></thead><tbody id="payHistBody"></tbody></table>
+          </div>
+        </div>
+
+        <!-- RRHH SUB 2: LIQUIDACIÓN LEGAL / INDEMNIZACIÓN -->
+        <div id="rsub-legal" class="rrhh-sub hidden">
+          <div class="card">
+            <div class="card-top">
+              <strong>Calculadora Legal de Liquidación Final e Indemnización (Código Laboral PY)</strong>
+              <span id="legTenureBadge" class="pill-blue">Antigüedad: —</span>
+            </div>
+            <div class="grid-4">
+              <div><label>Funcionario</label><select id="legEmp" onchange="onLegEmpChange()"></select></div>
+              <div><label>Fecha de Ingreso</label><input id="legHireDate" type="date" onchange="recalcLegalLive()"/></div>
+              <div><label>Fecha de Salida</label><input id="legExitDate" type="date" onchange="recalcLegalLive()"/></div>
+              <div>
+                <label>Motivo</label>
+                <select id="legReason" onchange="onLegReasonChange()">
+                  <option value="despido_injustificado">Despido Injustificado</option>
+                  <option value="renuncia">Renuncia Voluntaria</option>
+                  <option value="despido_justificado">Despido Justificado</option>
+                  <option value="periodo_prueba">Período de Prueba (&lt; 6 meses)</option>
+                  <option value="otro">Otro (escribir motivo)</option>
+                </select>
+                <input id="legCustomReason" type="text" maxlength="80" placeholder="Escribe el motivo..." class="hidden" style="margin-top:6px" oninput="recalcLegalLive()"/>
+              </div>
+              <div><label>Salario Mensual Base (Gs.)</label><input id="legSalary" type="number" min="0" step="50000" value="2798309" oninput="recalcLegalLive()"/></div>
+              <div><label>Días trabajados pendientes</label><input id="legPendingDays" type="number" min="0" max="31" value="15" oninput="recalcLegalLive()"/></div>
+              <div><label>Años Trabajados (manual &gt; 0)</label><input id="legManualYears" type="number" min="0" max="60" step="0.5" value="0" placeholder="0 = Auto por fechas" oninput="recalcLegalLive()"/></div>
+              <div><label>Vacaciones causadas no gozadas (días)</label><input id="legUnpaidVac" type="number" min="0" max="60" value="0" oninput="recalcLegalLive()"/></div>
+              <div style="display:flex;align-items:end;padding-bottom:6px">
+                <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer">
+                  <input id="legApplyIps" type="checkbox" checked onchange="recalcLegalLive()"/>
+                  <span>Descuento IPS 9% (solo imponibles)</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="legBreakdown" style="margin-top:12px">
+              <div id="legRuleNote" style="margin-bottom:8px"></div>
+              <table>
+                <thead><tr><th>Concepto Legal (Código Laboral PY)</th><th>Detalle</th><th style="text-align:right">Monto (Gs.)</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>1. Salario Pendiente</strong></td><td id="legRow1Det">—</td><td id="legRow1Amt" style="text-align:right">0 Gs.</td></tr>
+                  <tr><td><strong>2. Aguinaldo Proporcional (1/12)</strong></td><td id="legRow2Det">Art. 243 — Libre de IPS (0%)</td><td id="legRow2Amt" style="text-align:right">0 Gs.</td></tr>
+                  <tr><td><strong>3. Vacaciones Causadas / Prop.</strong></td><td id="legRow3Det">—</td><td id="legRow3Amt" style="text-align:right">0 Gs.</td></tr>
+                  <tr><td><strong>4. Preaviso (Art. 87)</strong></td><td id="legRow4Det">—</td><td id="legRow4Amt" style="text-align:right">0 Gs.</td></tr>
+                  <tr><td><strong>5. Indemnización por Antigüedad (Art. 91)</strong></td><td id="legRow5Det">—</td><td id="legRow5Amt" style="text-align:right">0 Gs.</td></tr>
+                </tbody>
+                <tbody id="legExtraBody"></tbody>
+                <tbody>
+                  <tr class="no-print" style="background:#f8fafc">
+                    <td colspan="3" style="padding:6px 8px">
+                      <button type="button" class="btn btn-out btn-sm" onclick="addLegalConceptRow()">+ Agregar concepto</button>
+                    </td>
+                  </tr>
+                  <tr><td style="color:#dc2626"><strong>Descuento IPS (9%)</strong></td><td id="legRow7Det">—</td><td id="legRow7Amt" style="text-align:right;color:#dc2626">- 0 Gs.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="calc-total-box">
+              <div>
+                <div style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Total Liquidación Legal Neta (Gs.)</div>
+                <div id="legNetTotal" style="font-size:24px;font-weight:900;color:#4ade80">0 Gs.</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button type="button" class="btn btn-out" style="padding:10px 14px" onclick="clearLegalForm()">🧹 Limpiar</button>
+                <button type="button" class="btn btn-ok" style="padding:10px 14px" onclick="saveLegalLiquidation()">💾 Registrar Liquidación Legal</button>
+              </div>
+            </div>
+
+            <div class="receipt-bar">
+              <button type="button" class="btn btn-dark" onclick="printLegalReceipt()">🖨️ Imprimir Recibo</button>
+              <button type="button" class="btn btn-pri" onclick="downloadLegalPdf()">📄 Convertir / Descargar PDF</button>
+              <a id="legWaSupport" class="btn btn-ok" href="#" target="_blank" rel="noopener noreferrer">💬 WhatsApp Soporte (+595 971 417036)</a>
+              <a id="legWaAny" class="btn btn-out" href="#" target="_blank" rel="noopener noreferrer">📲 Compartir por WhatsApp</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- RRHH SUB 3: EXTRACTOS POR EMPLEADO / SECTOR -->
+        <div id="rsub-ext" class="rrhh-sub hidden">
+          <div class="card">
+            <div class="card-top">
+              <strong>Extracto Histórico y Total Gastado por Personal y por Sector</strong>
+              <div style="display:flex;gap:5px;flex-wrap:wrap">
+                <button type="button" class="btn btn-out btn-sm" onclick="setExtPreset('day')">Hoy</button>
+                <button type="button" class="btn btn-out btn-sm" onclick="setExtPreset('month')">Este Mes</button>
+                <button type="button" class="btn btn-out btn-sm" onclick="setExtPreset('year')">Este Año</button>
+                <button type="button" class="btn btn-out btn-sm" onclick="setExtPreset('multi')">Últimos 3 Años</button>
+              </div>
+            </div>
+            <div class="grid-3" style="margin-bottom:10px">
+              <div><label>Desde</label><input id="extFrom" type="date" onchange="renderExtractos()"/></div>
+              <div><label>Hasta</label><input id="extTo" type="date" onchange="renderExtractos()"/></div>
+              <div><label>Filtrar por Sector</label><select id="extSector" onchange="renderExtractos()"></select></div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom:12px">
+              <div class="stat-card"><div style="font-size:11px;color:#475569;font-weight:700">Salarios Liquidados</div><div id="extTotPay" class="stat-val" style="color:#2563eb">0 Gs.</div></div>
+              <div class="stat-card"><div style="font-size:11px;color:#475569;font-weight:700">Pendiente en Curso (Horas)</div><div id="extTotPending" class="stat-val" style="color:#0891b2">0 Gs.</div><div id="extTotPendingHrs" style="font-size:10px;color:#64748b;margin-top:2px">Norm: 00:00:00 • Ext: 00:00:00</div></div>
+              <div class="stat-card"><div style="font-size:11px;color:#475569;font-weight:700">Gastos Manuales</div><div id="extTotExp" class="stat-val" style="color:#d97706">0 Gs.</div></div>
+              <div class="stat-card" style="background:#0f172a;color:#fff"><div style="font-size:11px;color:#94a3b8;font-weight:700">TOTAL GENERAL EMPRESA</div><div id="extTotAll" class="stat-val" style="color:#4ade80">0 Gs.</div></div>
+            </div>
+
+            <div class="grid-2">
+              <div>
+                <div style="font-weight:800;font-size:12px;margin-bottom:6px">Total Gastado por Sector (Salarios + Pendiente + Gastos)</div>
+                <table><thead><tr><th>Sector</th><th>Liquidado</th><th>Pendiente</th><th>Gastos</th><th>Total Sector</th></tr></thead><tbody id="extSectorBody"></tbody></table>
+              </div>
+              <div>
+                <div style="font-weight:800;font-size:12px;margin-bottom:6px">Extracto por Empleado (Horas Normales / Extras + Montos)</div>
+                <table><thead><tr><th>Empleado</th><th>Sector</th><th>Normales</th><th>Extras</th><th>Liq.</th><th>Total (Gs.)</th></tr></thead><tbody id="extEmpBody"></tbody></table>
+              </div>
+            </div>
+
+            <div class="receipt-bar">
+              <button type="button" class="btn btn-dark" onclick="printExtractoReceipt()">🖨️ Imprimir Recibo / Extracto</button>
+              <button type="button" class="btn btn-pri" onclick="downloadExtractoPdf()">📄 Convertir / Descargar PDF</button>
+              <a id="extWaSupport" class="btn btn-ok" href="#" target="_blank" rel="noopener noreferrer">💬 WhatsApp Soporte (+595 971 417036)</a>
+              <a id="extWaAny" class="btn btn-out" href="#" target="_blank" rel="noopener noreferrer">📲 Compartir por WhatsApp</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- RRHH SUB 4: GASTOS MANUALES INMUTABLES -->
+        <div id="rsub-gastos" class="rrhh-sub hidden">
+          <div class="card">
+            <div class="card-top">
+              <strong>Cargar Gastos Manuales Inmutables (por Sector / Camión)</strong>
+              <span class="pill-lock">🔒 Inmutable en Firestore</span>
+            </div>
+            <div class="grid-4" style="align-items:end">
+              <div><label>Fecha</label><input id="expDate" type="date"/></div>
+              <div>
+                <label>Sector / Área</label>
+                <div style="display:flex;gap:4px">
+                  <select id="expSector"></select>
+                  <button type="button" class="btn btn-out" style="white-space:nowrap" onclick="addCustomSector()">+ Nuevo</button>
+                </div>
+              </div>
+              <div><label>Concepto / Detalle</label><input id="expConcept" placeholder="Ej. Combustible, repuesto, balanceado..." maxlength="200"/></div>
+              <div><label>N° de Factura</label><input id="expInvoice" placeholder="001-001-0001234" maxlength="60"/></div>
+              <div><label>Monto (Gs.)</label><input id="expAmount" type="number" min="1" step="1000" placeholder="250000"/></div>
+              <div>
+                <button type="button" class="btn btn-pri" style="width:100%;justify-content:center;padding:8px 10px" onclick="saveImmutableExpense()">🔒 Guardar Gasto</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <strong>Historial de Gastos Inmutables</strong>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <select id="expFilterMode" style="width:auto" onchange="renderExpenses()">
+                  <option value="day">Por Día</option>
+                  <option value="month" selected>Por Mes</option>
+                  <option value="year">Por Año</option>
+                  <option value="range">Entre Fechas</option>
+                </select>
+                <input id="expFilterDay" type="date" style="width:auto" class="hidden" onchange="renderExpenses()"/>
+                <input id="expFilterMonth" type="month" style="width:auto" onchange="renderExpenses()"/>
+                <input id="expFilterYear" type="number" min="2020" max="2040" style="width:86px" class="hidden" onchange="renderExpenses()"/>
+                <input id="expFilterFrom" type="date" style="width:auto" class="hidden" onchange="renderExpenses()"/>
+                <input id="expFilterTo" type="date" style="width:auto" class="hidden" onchange="renderExpenses()"/>
+                <select id="expFilterSector" style="width:auto" onchange="renderExpenses()"></select>
+              </div>
+            </div>
+
+            <table><thead><tr><th>Fecha</th><th>Sector</th><th>Concepto / Detalle</th><th>N° Factura</th><th>Monto (Gs.)</th><th>Estado</th></tr></thead><tbody id="expBody"></tbody></table>
+
+            <!-- 3 CUADROS DE SUMA AUTOMÁTICA: DÍA / MES / AÑO -->
+            <div class="grid-3" style="margin-top:12px">
+              <div class="stat-card"><div style="font-size:11px;color:#475569;font-weight:700">Total del Día</div><div id="expTotDay" class="stat-val" style="color:#0f172a">0 Gs.</div></div>
+              <div class="stat-card"><div style="font-size:11px;color:#475569;font-weight:700">Total del Mes</div><div id="expTotMonth" class="stat-val" style="color:#2563eb">0 Gs.</div></div>
+              <div class="stat-card"><div style="font-size:11px;color:#475569;font-weight:700">Total del Año</div><div id="expTotYear" class="stat-val" style="color:#16a34a">0 Gs.</div></div>
+            </div>
+
+            <div class="receipt-bar">
+              <button type="button" class="btn btn-dark" onclick="printExpensesReceipt()">🖨️ Imprimir Recibo / Reporte</button>
+              <button type="button" class="btn btn-pri" onclick="downloadExpensesPdf()">📄 Convertir / Descargar PDF</button>
+              <a id="expWaSupport" class="btn btn-ok" href="#" target="_blank" rel="noopener noreferrer">💬 WhatsApp Soporte (+595 971 417036)</a>
+              <a id="expWaAny" class="btn btn-out" href="#" target="_blank" rel="noopener noreferrer">📲 Compartir por WhatsApp</a>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- TAB 3: EMPLEADOS (INDEPENDIENTE) -->
+      <div id="tab-emp" class="adm-tab hidden">
+        <!-- BLOQUE 1: REGISTRAR FUNCIONARIO (OCULTO / DESPLEGABLE POR DEFECTO) -->
+        <div class="card">
+          <div class="collapsible-head" onclick="toggleRegEmpBox()">
+            <strong>➕ Registrar Funcionario (Nuevo)</strong>
+            <span id="regEmpToggleLbl" class="btn btn-pri btn-sm">Mostrar formulario ▼</span>
+          </div>
+          <div id="regEmpBody" class="hidden" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr)">
+            <div class="grid-4">
+              <div><label>Nombre</label><input id="newEmpName" placeholder="Nombre y Apellido" maxlength="100"/></div>
+              <div><label>C.I.</label><input id="newEmpCi" placeholder="4.123.456" maxlength="30"/></div>
+              <div>
+                <label>Sector</label>
+                <input id="newEmpSec" list="sectorDatalist" value="Ganado" maxlength="80"/>
+              </div>
+              <div><label>PIN (4 dígitos)</label><input id="newEmpPin" maxlength="4" value="1234"/></div>
+              <div><label>Fecha de Ingreso</label><input id="newEmpHireDate" type="date"/></div>
+              <div><label>Tarifa Base Hora Normal (Gs.)</label><input id="newEmpRate" type="number" min="0" step="500" value="15000"/></div>
+              <div><label>% Hora Extra</label><input id="newEmpOtPct" type="number" min="0" max="500" step="5" value="50"/></div>
+              <div>
+                <label>IPS</label>
+                <select id="newEmpHasIps" onchange="onNewEmpIpsToggle()">
+                  <option value="0" selected>Sin IPS</option>
+                  <option value="1">Con IPS</option>
+                </select>
+              </div>
+              <div><label>Descuento IPS (Gs.)</label><input id="newEmpIpsAmt" type="number" min="0" step="1000" value="0"/></div>
+              <div><label>Correo Google (opcional)</label><input id="newEmpEmail" type="email" placeholder="empleado@gmail.com" maxlength="120"/></div>
+            </div>
+            <div style="margin-top:10px;display:flex;justify-content:flex-end">
+              <button type="button" class="btn btn-pri" onclick="saveNewEmployee()">+ Guardar Funcionario</button>
+            </div>
+          </div>
+        </div>
+        <datalist id="sectorDatalist"></datalist>
+
+        <!-- BLOQUE 2: EMPLEADOS REGISTRADOS -->
+        <div class="card">
+          <div class="card-top"><strong>Empleados Registrados</strong><span id="empCountBadge" style="font-size:12px;color:var(--mut)"></span></div>
+          <table>
+            <thead><tr><th>Nombre</th><th>C.I.</th><th>Sector</th><th>IPS</th><th>Ingreso</th><th>Tarifa / Extra</th><th>PIN</th><th>Acciones</th></tr></thead>
+            <tbody id="empBody"></tbody>
+          </table>
+
+          <div id="empEditBox" class="card hidden" style="margin-top:12px;background:#f8fafc">
+            <div class="card-top"><strong>Editar Empleado</strong><button type="button" class="btn btn-err btn-sm" onclick="closeEmpEdit()">✕</button></div>
+            <div class="grid-4">
+              <div><label>Nombre</label><input id="edName" maxlength="100"/></div>
+              <div><label>C.I.</label><input id="edCi" maxlength="30"/></div>
+              <div><label>Sector</label><input id="edSec" list="sectorDatalist" maxlength="80"/></div>
+              <div><label>PIN (4 dígitos)</label><input id="edPin" maxlength="4"/></div>
+              <div><label>Fecha de Ingreso</label><input id="edHireDate" type="date"/></div>
+              <div><label>Tarifa Base Hora (Gs.)</label><input id="edRate" type="number" min="0" step="500"/></div>
+              <div><label>% Hora Extra</label><input id="edOtPct" type="number" min="0" max="500" step="5"/></div>
+              <div>
+                <label>IPS</label>
+                <select id="edHasIps" onchange="onEdEmpIpsToggle()">
+                  <option value="0">Sin IPS</option>
+                  <option value="1">Con IPS</option>
+                </select>
+              </div>
+              <div><label>Descuento IPS (Gs.)</label><input id="edIpsAmt" type="number" min="0" step="1000" value="0"/></div>
+              <div><label>Correo Google</label><input id="edEmail" type="email" maxlength="120"/></div>
+            </div>
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="btn btn-ok" onclick="applyEmpEdit()">Guardar Cambios</button>
+              <button type="button" class="btn btn-warn" onclick="resetEmpPin()">Resetear PIN</button>
+              <button type="button" class="btn btn-err" onclick="deleteEmp()">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: CALENDARIO & PDF (DESPLEGABLE POR DEFECTO) -->
       <div id="tab-cal" class="adm-tab hidden">
         <div class="card">
-          <div class="card-top"><strong>Calendario, Quincena & PDF</strong><button class="btn btn-dark no-print" onclick="window.print()">🖨️ Imprimir / PDF</button></div>
+          <div class="card-top">
+            <strong>Calendario, Quincena &amp; PDF</strong>
+            <div style="display:flex;gap:6px;flex-wrap:wrap" class="no-print">
+              <button type="button" class="btn btn-ok" onclick="openAddHourModal()">+ Agregar Hora</button>
+              <button type="button" class="btn btn-dark" onclick="window.print()">🖨️ Imprimir / PDF</button>
+            </div>
+          </div>
           <div class="grid-3" style="margin-bottom:10px">
             <div><label>Empleado</label><select id="calEmp" onchange="renderCal()"></select></div>
             <div><label>Mes</label><input id="calMonth" type="month" onchange="renderCal()"/></div>
             <div><label>Período</label><select id="calPer" onchange="renderCal()"><option value="1">1ra Quincena (1–15)</option><option value="2">2da Quincena (16–Fin)</option><option value="ALL">Mes Completo</option></select></div>
           </div>
-          <div id="calSummary" style="font-weight:700;margin-bottom:8px"></div>
-          <table><thead><tr><th>Fecha</th><th>Ent. 1</th><th>Sal. 2</th><th>Ent. 3</th><th>Sal. 4</th><th>Normales</th><th>Extras</th><th>Total</th></tr></thead><tbody id="calBody"></tbody></table>
+
+          <div class="card" style="background:#f8fafc;margin-bottom:0">
+            <div class="collapsible-head" onclick="toggleCalDetail()">
+              <div style="display:grid;gap:4px">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <strong id="calPlanillaTitle">Resumen de Planilla</strong>
+                  <span id="calStatusBadge" class="pill-ok">Planilla Activa</span>
+                </div>
+                <div id="calSummary" style="font-size:12px;color:#334155"></div>
+              </div>
+              <button type="button" id="calToggleBtn" class="btn btn-out btn-sm no-print">Ver detalle de fechas ▼</button>
+            </div>
+            <div id="calTableWrap" class="hidden" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr);overflow-x:auto">
+              <table><thead><tr id="calHeadRow"><th>Fecha</th><th>Estado</th><th>Ent. 1</th><th>Sal. 2</th><th>Ent. 3</th><th>Sal. 4</th><th>Normales</th><th>Extras</th><th>Total</th></tr></thead><tbody id="calBody"></tbody></table>
+            </div>
+          </div>
         </div>
       </div>
+
+      <!-- TAB 5: UBICACIÓN GPS -->
       <div id="tab-gps" class="adm-tab hidden">
         <div class="gps-bar">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-dark" onclick="openTab('hoy')">← Panel</button>
-            <button id="mLive" class="btn btn-pri" onclick="setGpsMode('live')">En Vivo</button>
-            <button id="mHist" class="btn btn-dark" onclick="setGpsMode('hist')">Historial</button>
-            <select id="gpsEmp" onchange="refreshGps(false)"></select><input id="gpsDate" type="date" onchange="refreshGps(true)"/>
+            <button type="button" class="btn btn-dark" onclick="openTab('hoy')">← Panel</button>
+            <button type="button" id="mLive" class="btn btn-pri" onclick="setGpsMode('live')">En Vivo</button>
+            <button type="button" id="mHist" class="btn btn-dark" onclick="setGpsMode('hist')">Historial</button>
+            <select id="gpsEmp" onchange="refreshGps(true)"></select>
+            <input id="gpsDate" type="date" onchange="refreshGps(true)"/>
           </div>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-pri" onclick="setMapLayer('sat')">Satélite</button>
-            <button class="btn btn-dark" onclick="setMapLayer('osm')">Calles</button>
-            <button class="btn btn-ok" onclick="centerGps()">Centrar</button>
+            <button type="button" class="btn btn-pri" onclick="setMapLayer('sat')">Satélite</button>
+            <button type="button" class="btn btn-dark" onclick="setMapLayer('osm')">Calles</button>
+            <button type="button" class="btn btn-ok" onclick="centerGps()">Centrar</button>
           </div>
         </div>
         <div id="gpsMap"></div>
       </div>
+
+      <!-- TAB 6: RANKING & GRÁFICAS -->
+      <div id="tab-rank" class="adm-tab hidden">
+        <div class="card">
+          <div class="card-top">
+            <div>
+              <strong>🏆 Ranking &amp; Gráficas — Comparativa de Ingresos</strong>
+              <div id="rankPeriodSummary" style="font-size:11px;color:var(--mut);margin-top:2px"></div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <label id="rankModeEmpLbl" class="rank-mode-chk active">
+                <input id="rankModeEmp" type="checkbox" checked onchange="setRankingMode('emp')"/>
+                <span>Por Empleado</span>
+              </label>
+              <label id="rankModeSecLbl" class="rank-mode-chk">
+                <input id="rankModeSec" type="checkbox" onchange="setRankingMode('sector')"/>
+                <span>Por Sector</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- FILTROS SUPERIORES -->
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:space-between">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+              <button type="button" id="rankFiltRangeBtn" class="btn btn-pri btn-sm" onclick="setRankingDateFilter('range')">Entre Fechas</button>
+              <button type="button" id="rankFiltMonthBtn" class="btn btn-out btn-sm" onclick="setRankingDateFilter('month')">Por Mes</button>
+              <button type="button" id="rankFiltYearBtn" class="btn btn-out btn-sm" onclick="setRankingDateFilter('year')">Por Año</button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+              <div id="rankFromWrap"><label>Desde</label><input id="rankFrom" type="date" style="width:auto" onchange="renderRanking()"/></div>
+              <div id="rankToWrap"><label>Hasta</label><input id="rankTo" type="date" style="width:auto" onchange="renderRanking()"/></div>
+              <div id="rankMonthWrap" class="hidden"><label>Mes</label><input id="rankMonth" type="month" style="width:auto" onchange="renderRanking()"/></div>
+              <div id="rankYearWrap" class="hidden"><label>Año</label><input id="rankYear" type="number" min="2020" max="2040" style="width:92px" onchange="renderRanking()"/></div>
+              <label style="display:inline-flex;align-items:center;gap:6px;margin:0 0 6px;cursor:pointer;font-size:11px;color:#475569">
+                <input id="rankIncludeOpen" type="checkbox" checked onchange="renderRanking()"/>
+                <span>Incluir horas activas sin cerrar</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL IZQUIERDO (SELECCIÓN) + PANEL DERECHO (GRÁFICO DE BARRAS) -->
+        <div class="rank-grid" style="margin-bottom:10px">
+          <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
+            <div class="card-top" style="margin-bottom:6px;padding-bottom:6px">
+              <strong style="font-size:13px">Seleccionar para Comparar</strong>
+              <span id="rankSelCount" class="pill-blue">0 / 0</span>
+            </div>
+            <button type="button" id="rankToggleAllBtn" class="btn btn-out btn-sm" style="justify-content:center;width:100%" onclick="toggleAllRankingSelection()">Desmarcar Todos</button>
+            <div id="rankPickList" class="rank-pick-list"></div>
+          </div>
+
+          <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
+            <div class="card-top" style="margin-bottom:8px;padding-bottom:6px">
+              <strong style="font-size:13px">📊 Comparativa de Ingresos (Gs.)</strong>
+              <span id="rankChartMeta" style="font-size:11px;color:var(--mut)"></span>
+            </div>
+            <div id="rankChartHost" style="flex:1"></div>
+          </div>
+        </div>
+
+        <!-- TABLA INFERIOR DE RANKING ORDENADO -->
+        <div class="card">
+          <div class="card-top">
+            <strong>🏅 Ranking Ordenado (Mayor a Menor)</strong>
+            <span id="rankTableBadge" class="pill-ok">Top ingresos</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Posición (#)</th>
+                  <th id="rankNameColHead">Nombre / Sector</th>
+                  <th>Horas Normales</th>
+                  <th>Horas Extras</th>
+                  <th>Saldo Anterior (Gs.)</th>
+                  <th>Subtotal (Gs.)</th>
+                  <th>IPS (9%)</th>
+                  <th>Total Cobrado (Gs.)</th>
+                </tr>
+              </thead>
+              <tbody id="rankTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="receipt-bar">
+            <button type="button" class="btn btn-dark" onclick="printRankingReceipt()">🖨️ Imprimir</button>
+            <button type="button" class="btn btn-pri" onclick="downloadRankingPdf()">📄 Exportar PDF</button>
+            <a id="rankWaSupport" class="btn btn-ok" href="#" target="_blank" rel="noopener noreferrer">💬 WhatsApp Soporte (+595 971 417036)</a>
+            <a id="rankWaAny" class="btn btn-out" href="#" target="_blank" rel="noopener noreferrer">📲 Compartir por WhatsApp</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 7: CONFIGURACIÓN -->
       <div id="tab-cfg" class="adm-tab hidden">
+        <div class="card">
+          <div class="card-top"><strong>Instalar App y Enviar a Personales (APK / PWA)</strong></div>
+          <p style="font-size:12px;color:#475569;margin-bottom:10px">Genera el enlace directo de marcación móvil, código QR, mensaje de WhatsApp o paquete instalador HTML para que los funcionarios instalen la app en sus teléfonos Android o iPhone.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-warn" onclick="openPwaShareModal()">📲 Abrir Centro de Instalación y Enlace QR</button>
+            <button type="button" class="btn btn-pri" onclick="downloadInstallPackage()">📥 Descargar Paquete Instalador (.html)</button>
+          </div>
+        </div>
         <div class="card">
           <div class="card-top"><strong>Logo de la Empresa (Firestore)</strong></div>
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <img id="cfgLogo" src="./icon-192.png" class="logo-img" style="height:48px;max-width:120px" alt="Logo"/>
-            <input type="file" accept="image/*" style="width:auto" onchange="uploadLogo(event)"/><button class="btn btn-out" onclick="clearLogo()">Quitar Logo</button>
+            <button type="button" class="logo-pick-btn" onclick="openMobileLogoPicker()" title="Tocar para cambiar logo">
+              <img id="cfgLogo" src="/icon-192.png" class="logo-img" style="height:48px;max-width:120px" alt="Logo"/>
+              <span class="logo-cam">📷</span>
+            </button>
+            <button type="button" class="btn btn-pri" onclick="openMobileLogoPicker()">🖼️ Elegir desde Galería</button>
+            <button type="button" class="btn btn-out" onclick="clearLogo()">Quitar Logo</button>
           </div>
         </div>
         <div class="card">
@@ -156,60 +800,130 @@ body.mob-only .screen{border-radius:0!important;min-height:100vh!important;flex:
           <div class="grid-3" style="margin-bottom:10px">
             <div><label>Horas Normales Lun–Vie</label><input id="cfgWd" type="number" step="0.5" value="8" onchange="saveRules()"/></div>
             <div><label>Horas Normales Sábado</label><input id="cfgSat" type="number" step="0.5" value="4" onchange="saveRules()"/></div>
-            <div><label>GPS Celular</label><button class="btn btn-ok" onclick="enableGpsOnce()">📍 Permitir y Probar GPS</button></div>
+            <div><label>GPS Celular</label><button type="button" class="btn btn-ok" onclick="enableGpsOnce()">📍 Permitir y Probar GPS</button></div>
           </div>
-          <button class="btn btn-err" onclick="wipeAllData()">🗑️ Limpiar Datos de Ejemplo / Reiniciar Base</button>
+          <button type="button" class="btn btn-err" onclick="wipeAllData()">🗑️ Limpiar Datos de Ejemplo / Reiniciar Base</button>
         </div>
       </div>
     </main>
   </section>
+
+  <!-- APP MÓVIL (APK / PWA) -->
   <aside id="mobCol" class="mob-col">
     <div class="phone"><div class="screen">
       <div id="mobAuth" class="mob-auth">
         <div class="mob-head-row" style="color:#fff;padding:4px 2px">
-          <div style="display:flex;align-items:center;gap:8px"><img id="mobAuthLogo" src="./icon-192.png" class="logo-img" alt="Logo"/><div><div style="font-weight:800;font-size:15px">CARL PETERS</div><div id="mobAuthLive" class="live-tag on">● EN VIVO</div></div></div>
-          <button type="button" class="lock-ico" onclick="unlockAdminPin()">🔒</button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button type="button" class="logo-pick-btn" onclick="openMobileLogoPicker()" title="Tocar logo para cambiar desde galería">
+              <img id="mobAuthLogo" src="/icon-192.png" class="logo-img" alt="Logo"/>
+              <span class="logo-cam">📷</span>
+            </button>
+            <div>
+              <div style="font-weight:800;font-size:15px">CARL PETERS</div>
+              <div id="mobAuthLive" class="live-tag off">● SIN CONEXIÓN</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button type="button" id="mobInstallIconAuth" class="lock-ico" onclick="handleMobileInstallAction()" title="Instalar o compartir app">📲</button>
+            <button type="button" class="lock-ico" onclick="unlockAdminPin()" title="Acceso Admin">🔒</button>
+          </div>
         </div>
-        <div class="card" style="margin:0">
-          <div class="tabs-2" style="margin-bottom:10px"><button type="button" id="tLog" class="tab-btn active" onclick="setAuthTab('login')">Ingresar</button><button type="button" id="tReg" class="tab-btn" onclick="setAuthTab('reg')">Registrarme</button></div>
+
+        <button type="button" id="mobInstallBanner" class="btn btn-warn" style="justify-content:center;padding:8px 10px" onclick="handleMobileInstallAction()">📲 Instalar App en este Teléfono / Compartir</button>
+
+        <div id="mobGoogleCard" class="card" style="margin:0;display:grid;gap:10px;text-align:center;padding:16px">
+          <strong style="font-size:14px">Conexión en Vivo (Firestore)</strong>
+          <p id="mobGoogleVerifyMsg" style="font-size:12px;color:#475569;line-height:1.4">Verificando sesión de Google guardada...</p>
+          <button type="button" id="mobGoogleBtn" class="btn btn-ok hidden" style="justify-content:center;padding:11px;font-size:13px" onclick="triggerGoogleSignIn()">🔐 Conectar con Google</button>
+        </div>
+
+        <div id="mobAuthCard" class="card hidden" style="margin:0">
+          <div id="mobGoogleEmail" style="font-size:11px;color:#16a34a;font-weight:700;margin-bottom:8px"></div>
+          <div id="mobAuthTabs" class="tabs-2" style="margin-bottom:10px">
+            <button type="button" id="tLog" class="tab-btn active" onclick="setAuthTab('login')">Ingresar</button>
+            <button type="button" id="tReg" class="tab-btn" onclick="setAuthTab('reg')">Registrarme</button>
+          </div>
+          <div id="mobRememberedBox" class="mob-remembered-card hidden">
+            <div id="mobRemAvatar" class="mob-remembered-avatar">CP</div>
+            <div style="min-width:0;flex:1">
+              <div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase">Usuario recordado</div>
+              <div id="mobRemName" style="font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+              <div id="mobRemMeta" style="font-size:11px;color:#cbd5e1"></div>
+            </div>
+          </div>
           <form id="fLogin" onsubmit="mobLogin(event)" style="display:grid;gap:8px">
-            <div><label>Nombre o C.I.</label><input id="lId" list="empList" required/></div>
-            <div><label>PIN (4 dígitos)</label><input id="lPin" type="password" inputmode="numeric" maxlength="7" required/></div>
+            <div id="lIdWrap"><label>Nombre o C.I.</label><input id="lId" list="empList" required/></div>
+            <div><label>PIN (4 dígitos)</label><input id="lPin" type="password" inputmode="numeric" maxlength="7" placeholder="••••" required/></div>
             <button type="submit" class="btn btn-pri" style="justify-content:center;padding:10px">Entrar a Marcar Hora</button>
-            <button type="button" class="btn btn-out" style="justify-content:center" onclick="mobResetPin()">🔑 Olvidé o Resetearon mi PIN</button>
+            <button type="button" class="btn btn-out" style="justify-content:center" onclick="mobResetPin()">🔑 ¿Olvidaste tu PIN o cambiaste de celular?</button>
+            <button type="button" id="mobSwitchUserBtn" class="mob-switch-link hidden" onclick="clearRememberedMobUser()">Cambiar de usuario / No soy yo</button>
           </form>
           <form id="fReg" class="hidden" onsubmit="mobRegister(event)" style="display:grid;gap:8px">
-            <div><label>Nombre Completo</label><input id="rName" required/></div><div><label>C.I.</label><input id="rCi" required/></div>
-            <div><label>Sector / Cargo</label><input id="rSec" value="Ganado" required/></div>
+            <div><label>Nombre Completo</label><input id="rName" maxlength="100" required/></div>
+            <div><label>C.I.</label><input id="rCi" maxlength="30" required/></div>
+            <div><label>Sector / Cargo</label><input id="rSec" list="sectorDatalist" value="Ganado" maxlength="80" required/></div>
+            <div>
+              <label>¿Aporta a IPS?</label>
+              <div class="ips-touch-grid">
+                <button type="button" id="rBtnConIps" class="ips-touch-btn" onclick="setMobRegIps(true)">✅ Con IPS</button>
+                <button type="button" id="rBtnSinIps" class="ips-touch-btn active-sin" onclick="setMobRegIps(false)">⛔ Sin IPS</button>
+              </div>
+            </div>
             <div><label>PIN (4 dígitos)</label><input id="rPin" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" required/></div>
             <button type="submit" class="btn btn-pri" style="justify-content:center;padding:10px">Crear Cuenta y Entrar</button>
           </form>
           <datalist id="empList"></datalist>
         </div>
       </div>
+
       <div id="mobApp" class="hidden" style="display:flex;flex-direction:column;flex:1">
         <div class="mob-head">
           <div class="mob-head-row">
-            <div style="display:flex;align-items:center;gap:8px;min-width:0"><img id="mobHeadLogo" class="logo-img hidden" alt="Logo"/><div style="min-width:0"><div style="font-weight:800;font-size:14px">CARL PETERS</div><div id="mobLiveTag" class="live-tag on">● EN VIVO • Funcionario</div><div id="mMeta" style="font-size:11px;color:#cbd5e1"></div></div></div>
-            <button type="button" class="lock-ico" onclick="unlockAdminPin()">🔒</button>
+            <div style="display:flex;align-items:center;gap:8px;min-width:0">
+              <button type="button" class="logo-pick-btn" onclick="openMobileLogoPicker()" title="Tocar logo para cambiar desde galería">
+                <img id="mobHeadLogo" src="/icon-192.png" class="logo-img" alt="Logo"/>
+                <span class="logo-cam">📷</span>
+              </button>
+              <div style="min-width:0">
+                <div style="font-weight:800;font-size:14px">CARL PETERS</div>
+                <div id="mobLiveTag" class="live-tag on">● EN VIVO • Funcionario</div>
+                <div id="mMeta" style="font-size:11px;color:#cbd5e1"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button type="button" id="mobInstallIconApp" class="lock-ico" onclick="handleMobileInstallAction()" title="Instalar o compartir app">📲</button>
+              <button type="button" class="lock-ico" onclick="unlockAdminPin()" title="Acceso Admin">🔒</button>
+            </div>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px"><div id="mClock" style="font-size:12px;font-weight:700;color:#4ade80">--:--:--</div><button type="button" class="btn btn-err" style="padding:4px 8px;font-size:11px" onclick="mobLogout()">Salir / Cambiar</button></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px">
+            <div id="mClock" style="font-size:12px;font-weight:700;color:#4ade80">--:--:--</div>
+            <button type="button" class="btn btn-err" style="padding:4px 8px;font-size:11px" onclick="mobLogout()">Salir / Cambiar</button>
+          </div>
         </div>
         <div class="mob-body">
-          <div class="tabs-2"><button type="button" id="subPunchBtn" class="tab-btn active" onclick="setMobSub('punch')">☝ Marcar Hora</button><button type="button" id="subHoursBtn" class="tab-btn" onclick="setMobSub('hours')">📊 Mis Horas</button></div>
+          <div class="tabs-2">
+            <button type="button" id="subPunchBtn" class="tab-btn active" onclick="setMobSub('punch')">☝ Marcar Hora</button>
+            <button type="button" id="subHoursBtn" class="tab-btn" onclick="setMobSub('hours')">📊 Mis Horas</button>
+          </div>
           <div id="subPunch" style="display:flex;flex-direction:column;gap:8px;flex:1">
-            <div style="display:flex;gap:6px;align-items:center"><button type="button" class="btn btn-out" onclick="shiftMobDate(-1)">◀</button><input id="mDate" type="date" onchange="renderMob()"/><button type="button" class="btn btn-out" onclick="shiftMobDate(1)">▶</button></div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button type="button" class="btn btn-out" onclick="shiftMobDate(-1)">◀</button>
+              <input id="mDate" type="date" onchange="renderMob()"/>
+              <button type="button" class="btn btn-out" onclick="shiftMobDate(1)">▶</button>
+            </div>
+            <div id="mobNightBanner" class="mob-night-banner hidden"></div>
             <div class="grid-3" style="grid-template-columns:1fr 1fr">
               <div class="card" style="margin:0;padding:8px;text-align:center"><div id="mNorm" style="font-weight:800">00h 00m 00s</div><span style="font-size:11px;color:var(--mut)">Normales</span></div>
               <div class="card" style="margin:0;padding:8px;text-align:center"><div id="mExt" style="font-weight:800;color:var(--acc)">00h 00m 00s</div><span style="font-size:11px;color:var(--mut)">Extras</span></div>
             </div>
-            <div id="mMarks" class="card" style="margin:0;padding:10px;font-size:12px;display:grid;gap:4px"></div>
+            <div id="mMarks" class="card mob-marks-box"></div>
             <div class="fp-zone">
               <div id="fpLbl" style="font-size:12px;font-weight:700">Tocar huella para marcar</div>
               <button type="button" id="fpBtn" class="fp-btn" aria-label="Huella" onpointerdown="fpDown()" onpointerup="fpUp()" onpointerleave="fpCancel()">
                 <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/></svg>
               </button>
-              <div id="fpMsg" style="font-size:11px;color:var(--mut)">GPS activo cada 10s</div>
+              <button type="button" id="btnMobAddExtra" class="btn mob-extra-btn hidden" onclick="unlockMobExtraShift()">+ Marcar Hora Extra</button>
+              <div id="fpMsg" style="font-size:11px;color:var(--mut);margin-top:4px">GPS activo cada 10s</div>
             </div>
           </div>
           <div id="subHours" class="hidden" style="display:flex;flex-direction:column;gap:8px;flex:1">
@@ -229,25 +943,124 @@ body.mob-only .screen{border-radius:0!important;min-height:100vh!important;flex:
     </div></div>
   </aside>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script type="module">
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, onSnapshot, arrayUnion } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-const FB_CFG = {
-  apiKey: "AIzaSyD4fJDNXbXmb0Q1UtG7kjdjKuzmaWYRfvc",
-  authDomain: "hph-transporte-sa.firebaseapp.com",
-  projectId: "hph-transporte-sa",
-  storageBucket: "hph-transporte-sa.firebasestorage.app",
-  messagingSenderId: "103678951088",
-  appId: "1:103678951088:web:fa0d17a537043f9f0f5c75"
-};
-const DB_ID = "ai-studio-hphtransportesa-fe2bfdd1-bf5d-48bd-91cc-00a1a85dae07";
-const MASTER_PIN = "5722677", CACHE_KEY = "cp_py26_cache", MOB_KEY = "cp_py26_mob_id", GPS_KEY = "cp_py26_gps_ok", ADM_KEY = "cp_py26_adm_ok";
+<!-- PRINTABLE RECEIPT TARGET -->
+<div id="printReceiptSheet"></div>
 
-let db = null, editId = null, gpsTimer = null, map = null, satGrp = null, osmLay = null, mkLay = null, poly = null, gpsMode = "live", gpsLive = {}, centeredOnce = false, fbConnected = false;
-let state = JSON.parse(localStorage.getItem(CACHE_KEY) || "null") || { companyLogo: "", rules: { wd: 8, sat: 4 }, employees: [], marks: {} };
+<div id="offlineBar" class="offline-bar hidden">● Sin conexión — usando caché local</div>
+<div id="toastHost" class="cp-toast-host"></div>
 
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
-const nowT = () => new Date().toTimeString().slice(0, 8);
-const toSec = t => { if (!t || !/^\d{2}:\d{2}:\d{2}$/.test(t)) return null; const [h,m,s] = t.split(":").map(Number); return h
+<!-- GENERIC MODAL -->
+<div id="cpModal" class="cp-modal-bg hidden">
+  <div class="cp-modal">
+    <strong id="cpModalTitle" style="font-size:15px"></strong>
+    <p id="cpModalBody" style="font-size:13px;color:#475569;line-height:1.4"></p>
+    <div id="cpModalInputWrap" class="hidden">
+      <label id="cpModalInputLbl"></label>
+      <input id="cpModalInput"/>
+    </div>
+    <div id="cpModalInput2Wrap" class="hidden">
+      <label id="cpModalInput2Lbl"></label>
+      <input id="cpModalInput2"/>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button type="button" id="cpModalCancel" class="btn btn-out">Cancelar</button>
+      <button type="button" id="cpModalOk" class="btn btn-pri">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD HOUR MODAL (CALENDARIO) -->
+<div id="addHourModal" class="cp-modal-bg hidden">
+  <form class="cp-modal" onsubmit="saveAddHourModal(event)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <strong style="font-size:15px">➕ Agregar / Corregir Hora Manual</strong>
+      <button type="button" class="btn btn-err btn-sm" onclick="closeAddHourModal()">✕</button>
+    </div>
+    <p style="font-size:12px;color:#475569;line-height:1.4">Carga una marcación exacta (HH:MM:SS) en Firestore. Se actualizarán automáticamente Asistencia Hoy, Pago de Salario, Extractos y Ranking &amp; Gráficas.</p>
+    <div>
+      <label>Funcionario</label>
+      <select id="addHrEmp" required></select>
+    </div>
+    <div class="grid-2" style="grid-template-columns:1fr 1fr">
+      <div>
+        <label>Fecha</label>
+        <input id="addHrDate" type="date" required/>
+      </div>
+      <div>
+        <label>Tipo de Marcación</label>
+        <select id="addHrSlot" required>
+          <option value="e1">1. Ent. 1 (Entrada Mañana)</option>
+          <option value="s2">2. Sal. 2 (Salida Almuerzo)</option>
+          <option value="e3">3. Ent. 3 (Entrada Tarde)</option>
+          <option value="s4">4. Sal. 4 (Salida Final)</option>
+          <option value="ex_0_in">5. Entrada Extra 1</option>
+          <option value="ex_0_out">6. Salida Extra 1</option>
+          <option value="ex_1_in">7. Entrada Extra 2</option>
+          <option value="ex_1_out">8. Salida Extra 2</option>
+          <option value="ex_2_in">9. Entrada Extra 3</option>
+          <option value="ex_2_out">10. Salida Extra 3</option>
+          <option value="ex_3_in">11. Entrada Extra 4</option>
+          <option value="ex_3_out">12. Salida Extra 4</option>
+        </select>
+      </div>
+    </div>
+    <div>
+      <label>Hora exacta (HH:MM:SS)</label>
+      <input id="addHrTime" type="time" step="1" required/>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button type="button" class="btn btn-out" onclick="closeAddHourModal()">Cancelar</button>
+      <button type="submit" class="btn btn-ok">✓ Guardar Hora</button>
+    </div>
+  </form>
+</div>
+
+<!-- PWA INSTALL / SHARE MODAL -->
+<div id="pwaModal" class="cp-modal-bg hidden">
+  <div class="cp-modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <strong style="font-size:15px">📲 Instalar y Compartir App (APK / PWA)</strong>
+      <button type="button" class="btn btn-err" style="padding:4px 8px" onclick="closePwaShareModal()">✕</button>
+    </div>
+
+    <div class="tabs-2">
+      <button type="button" id="pwaTargetMob" class="tab-btn active" onclick="setPwaShareTarget('mobile')">Solo APK (Personal)</button>
+      <button type="button" id="pwaTargetFull" class="tab-btn" onclick="setPwaShareTarget('full')">Panel Completo</button>
+    </div>
+
+    <div class="qr-box">
+      <canvas id="pwaQrCanvas" width="168" height="168"></canvas>
+      <div style="font-size:11px;color:#475569;text-align:center">Escanea este QR con la cámara del celular para abrir e instalar directamente</div>
+    </div>
+
+    <div>
+      <label>Enlace de instalación para compartir</label>
+      <div style="display:flex;gap:6px">
+        <input id="pwaShareUrl" type="text" readonly/>
+        <button type="button" class="btn btn-pri" onclick="copyPwaLink()">📋 Copiar</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <a id="pwaWaLink" class="btn btn-ok" style="justify-content:center" href="#" target="_blank" rel="noopener noreferrer">💬 Enviar WhatsApp</a>
+      <button type="button" id="pwaWebShareBtn" class="btn btn-dark" style="justify-content:center" onclick="sharePwaNative()">📤 Compartir</button>
+    </div>
+
+    <div style="border-top:1px solid var(--bdr);padding-top:10px;display:grid;gap:6px">
+      <button type="button" id="pwaInstallNowBtn" class="btn btn-warn" style="justify-content:center;padding:10px" onclick="triggerPwaInstall()">📲 Instalar en este Dispositivo</button>
+      <a id="pwaOpenNewTab" class="btn btn-out hidden" style="justify-content:center" href="/?mode=mobile" target="_blank" rel="noopener noreferrer">↗ Abrir en Pestaña Nueva para Instalar</a>
+      <div id="pwaInstallHint" style="font-size:11px;color:#475569;line-height:1.45"></div>
+    </div>
+
+    <div style="border-top:1px solid var(--bdr);padding-top:10px;display:grid;gap:6px">
+      <strong style="font-size:12px">Paquete descargable para el personal</strong>
+      <button type="button" class="btn btn-pri" style="justify-content:center" onclick="downloadInstallPackage()">📥 Descargar Paquete Instalador (.html)</button>
+      <button type="button" class="btn btn-out" style="justify-content:center" onclick="downloadPwaManifest()">📦 Descargar Manifiesto PWA (.json)</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

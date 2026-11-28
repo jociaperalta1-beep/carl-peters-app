@@ -1,0 +1,5 @@
+{
+  "name": "CARL PETERS — Asistencia & Nómina PY 2026",
+  "description": "Sistema de marcación biométrica de asistencia en obra, control de horas normales y extras, reportes PDF y ubicación GPS en tiempo real (Paraguay 2026).",
+  "requestFramePermissions": ["geolocation"]
+}
