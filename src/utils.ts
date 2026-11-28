@@ -223,6 +223,8 @@ export interface LegalLiquidationInput {
   hireDate: string;
   exitDate: string;
   monthlySalary: number;
+  normalHourlyRate?: number;
+  useHourlyRateBase?: boolean;
   reason: 'despido_injustificado' | 'renuncia' | 'despido_justificado' | 'periodo_prueba' | 'otro';
   pendingDays: number;
   manualYearsWorked?: number;
@@ -237,6 +239,9 @@ export interface LegalLiquidationResult {
   months: number;
   days: number;
   usedManualYears: boolean;
+  normalHourlyRate: number;
+  ordinaryMonthlySalary: number;
+  usedHourlyRateBase: boolean;
   dailyWage: number;
   pendingSalaryGs: number;
   aguinaldoGs: number;
@@ -257,7 +262,9 @@ export interface LegalLiquidationResult {
 }
 
 /**
- * Calculadora Legal de Liquidación Final e Indemnización según Código Laboral del Paraguay
+ * Calculadora Legal de Liquidación Final e Indemnización según Código Laboral del Paraguay.
+ * Base estrictamente ordinaria (Hora Normal × 8h = jornal diario base, o Salario Ordinario Mensual ÷ 30),
+ * excluyendo completamente cualquier monto o suma de horas extras.
  */
 export function computeParaguayLegalLiquidation(inp: LegalLiquidationInput): LegalLiquidationResult {
   const [hy, hm, hd] = (inp.hireDate || todayStr()).split('-').map(Number);
@@ -302,20 +309,29 @@ export function computeParaguayLegalLiquidation(inp: LegalLiquidationInput): Leg
 
   const totalMonths = years * 12 + months + days / 30;
   const isUnderSixMonths = totalMonths < 6;
-  const salary = Math.max(0, inp.monthlySalary || 0);
-  const dailyWage = salary / 30;
 
-  // 1. Salario pendiente (imponible IPS)
+  // Base estrictamente ordinaria (sin horas extras):
+  // Monto Hora Normal × 8h = Jornal Diario Base, o Salario Ordinario Mensual ÷ 30
+  const normalHourlyRate = Math.max(0, Number(inp.normalHourlyRate || 0));
+  const usedHourlyRateBase = Boolean(inp.useHourlyRateBase) && normalHourlyRate > 0;
+  const dailyWage = usedHourlyRateBase
+    ? normalHourlyRate * 8
+    : Math.max(0, inp.monthlySalary || 0) / 30;
+  const ordinaryMonthlySalary = usedHourlyRateBase
+    ? Math.round(dailyWage * 30)
+    : Math.max(0, inp.monthlySalary || 0);
+
+  // 1. Días trabajados pendientes (imponible IPS, exclusivamente sobre jornal diario ordinario)
   const pendingSalaryGs = Math.round(dailyWage * Math.max(0, inp.pendingDays || 0));
 
-  // 2. Aguinaldo proporcional (1/12 de lo ganado en el año calendario actual, libre de IPS)
+  // 2. Aguinaldo proporcional (1/12 sobre salario ordinario ganado en el año calendario, libre de IPS)
   const jan1 = new Date(end.getFullYear(), 0, 1);
   const agStart = usedManualYears && years >= 1 ? jan1 : start > jan1 ? start : jan1;
   const daysInYearWorked = Math.max(0, Math.floor((end.getTime() - agStart.getTime()) / 86400000) + 1);
-  const earnedThisYear = (salary / 365) * Math.min(365, daysInYearWorked);
+  const earnedThisYear = (ordinaryMonthlySalary / 365) * Math.min(365, daysInYearWorked);
   const aguinaldoGs = Math.round(earnedThisYear / 12);
 
-  // 3. Vacaciones causadas y proporcionales (Art. 218: 12, 18 o 30 días)
+  // 3. Vacaciones causadas y proporcionales (Art. 218: 12, 18 o 30 días sobre jornal diario ordinario)
   let vacAnnualDays = 12;
   if (years > 10 || (years === 10 && (months > 0 || days > 0))) {
     vacAnnualDays = 30;
@@ -331,7 +347,7 @@ export function computeParaguayLegalLiquidation(inp: LegalLiquidationInput): Leg
   const totalVacDays = Math.max(0, inp.unpaidVacationDays || 0) + vacPropDays;
   const vacacionesGs = Math.round(dailyWage * totalVacDays);
 
-  // 4. Preaviso (Art. 87) & 5. Indemnización por antigüedad (Art. 91)
+  // 4. Preaviso (Art. 87) & 5. Indemnización por antigüedad (Art. 91) sobre jornal diario ordinario
   // Si es nuevo (< 6 meses), renuncia, despido justificado o período de prueba: NO corresponde preaviso ni indemnización
   let preavisoDays = 0;
   let indemYearsCount = 0;
@@ -357,6 +373,7 @@ export function computeParaguayLegalLiquidation(inp: LegalLiquidationInput): Leg
   const imponibleBaseGs = pendingSalaryGs + vacacionesGs;
   const ipsDeductionGs = inp.applyIps ? Math.round(imponibleBaseGs * 0.09) : 0;
 
+  // Suma automática de todos los conceptos legales al total neto del recibo
   const grossTotalGs = pendingSalaryGs + aguinaldoGs + vacacionesGs + preavisoGs + indemnizacionGs + manualBonusGs;
   const netTotalGs = Math.max(0, grossTotalGs - ipsDeductionGs);
 
@@ -366,6 +383,9 @@ export function computeParaguayLegalLiquidation(inp: LegalLiquidationInput): Leg
     months,
     days,
     usedManualYears,
+    normalHourlyRate,
+    ordinaryMonthlySalary,
+    usedHourlyRateBase,
     dailyWage,
     pendingSalaryGs,
     aguinaldoGs,

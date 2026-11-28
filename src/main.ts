@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import {
   auth,
+  authPersistenceReady,
   BOOTSTRAPPED_ADMIN_EMAIL,
   db,
   handleFirestoreError,
@@ -49,6 +50,7 @@ import {
   type AttendanceMarkDoc,
   type AuthTab,
   type EmployeeDoc,
+  type ExtraPunchPair,
   type GpsHistoryDoc,
   type GpsLiveDoc,
   type GpsMode,
@@ -57,6 +59,7 @@ import {
   type MapLayerMode,
   type MobSubTab,
   type PayrollLiquidationDoc,
+  type PunchTimestamps,
   type RankingDateFilter,
   type RankingMode,
   type RememberedMobUser,
@@ -68,6 +71,7 @@ import {
   computeParaguayLegalLiquidation,
   currentMonthStr,
   currentYearStr,
+  dateStrFromMs,
   DEFAULT_SECTORS,
   escapeHtml,
   fmtGs,
@@ -77,6 +81,8 @@ import {
   generateEmployeeId,
   getCurrentWeekDates,
   getMonthDates,
+  hasOpenPunch,
+  localDateTimeToMs,
   makeMarkDocId,
   normalizeCi,
   nowTimeStr,
@@ -111,8 +117,52 @@ const LAYOUT_KEY = 'cp_py26_layout';
 
 let mobRegHasIps = false;
 
-type MarkSlot = 'e1' | 's2' | 'e3' | 's4';
+type BaseMarkSlot = 'e1' | 's2' | 'e3' | 's4';
+type ExtraMarkSlot = `ex_${number}_in` | `ex_${number}_out`;
+type MarkSlot = BaseMarkSlot | ExtraMarkSlot;
+
+function parseExtraSlot(slot: string): { idx: number; field: 'in' | 'out' } | null {
+  const m = /^ex_(\d+)_(in|out)$/.exec(slot);
+  if (!m) return null;
+  const idx = Number(m[1]);
+  if (!Number.isInteger(idx) || idx < 0 || idx >= 20) return null;
+  return { idx, field: m[2] as 'in' | 'out' };
+}
+
+function isValidMarkSlot(slot: string): slot is MarkSlot {
+  if (slot === 'e1' || slot === 's2' || slot === 'e3' || slot === 's4') return true;
+  return parseExtraSlot(slot) !== null;
+}
+
+function getSlotDisplayName(slot: MarkSlot): string {
+  if (slot === 'e1') return 'Ent. 1';
+  if (slot === 's2') return 'Sal. 2';
+  if (slot === 'e3') return 'Ent. 3';
+  if (slot === 's4') return 'Sal. 4';
+  const ex = parseExtraSlot(slot);
+  if (ex) {
+    return ex.field === 'in' ? `Ent. Extra ${ex.idx + 1}` : `Sal. Extra ${ex.idx + 1}`;
+  }
+  return slot;
+}
+
+function findOpenOvernightMark(empId: string, today: string): { dateStr: string; mark: AttendanceMarkDoc } | null {
+  const yesterday = shiftDateStr(today, -1);
+  const mk = state.marks[makeMarkDocId(empId, yesterday)];
+  if (mk && hasOpenPunch(mk)) {
+    return { dateStr: yesterday, mark: mk };
+  }
+  return null;
+}
+
+function formatTimeWithNextDayTag(timeStr: string | undefined, ts: number | undefined, anchorDate: string): string {
+  if (!timeStr) return '—';
+  const nextDay = typeof ts === 'number' && ts > 0 && dateStrFromMs(ts) > anchorDate;
+  return nextDay ? `${timeStr} (+1d)` : timeStr;
+}
+
 let activeCalEdit: { empId: string; date: string; slot: MarkSlot } | null = null;
+let mobExtraUnlockedForKey = '';
 
 // === Ranking & Gráficas State ===
 let rankMode: RankingMode = 'emp';
@@ -129,6 +179,7 @@ let lastRankingSorted: RankingItem[] = [];
 let lastRankingPeriodLabel = '';
 
 // === Application State ===
+let authResolved = false;
 let currentUser: User | null = null;
 let isCloudAdmin = false;
 let fbConnected = false;
@@ -637,12 +688,45 @@ function updateConnectionBadges(): void {
   const fbBadge = $('fbBadge');
   const mobAuthLive = $('mobAuthLive');
   const mobLiveTag = $('mobLiveTag');
-  const googleAuthBtn = $('googleAuthBtn');
+  const googleAuthBtn = $<HTMLButtonElement>('googleAuthBtn');
   const mobGoogleCard = $('mobGoogleCard');
+  const mobGoogleVerifyMsg = $('mobGoogleVerifyMsg');
+  const mobGoogleBtn = $('mobGoogleBtn');
   const mobAuthCard = $('mobAuthCard');
   const mobGoogleEmail = $('mobGoogleEmail');
   const admGoogleStatus = $('admGoogleStatus');
   const signedInVerified = Boolean(currentUser && currentUser.emailVerified);
+
+  if (!authResolved) {
+    if (fbBadge) {
+      fbBadge.className = 'b-off';
+      fbBadge.textContent = '⏳ Verificando sesión...';
+    }
+    if (googleAuthBtn) {
+      googleAuthBtn.textContent = '⏳ Verificando sesión...';
+      googleAuthBtn.className = 'btn btn-dark';
+      googleAuthBtn.disabled = true;
+    }
+    if (admGoogleStatus) {
+      admGoogleStatus.textContent = 'Verificando sesión de Google guardada...';
+      admGoogleStatus.style.color = '#64748b';
+    }
+    if (mobGoogleCard && mobAuthCard) {
+      mobGoogleCard.classList.remove('hidden');
+      mobAuthCard.classList.add('hidden');
+    }
+    if (mobGoogleVerifyMsg) mobGoogleVerifyMsg.textContent = 'Verificando sesión de Google guardada...';
+    if (mobGoogleBtn) mobGoogleBtn.classList.add('hidden');
+    if (mobAuthLive) {
+      mobAuthLive.className = 'live-tag off';
+      mobAuthLive.textContent = '● VERIFICANDO SESIÓN...';
+    }
+    if (mobLiveTag) {
+      mobLiveTag.className = 'live-tag off';
+      mobLiveTag.textContent = '● VERIFICANDO SESIÓN...';
+    }
+    return;
+  }
 
   if (fbBadge) {
     if (signedInVerified && fbConnected) {
@@ -658,6 +742,7 @@ function updateConnectionBadges(): void {
   }
 
   if (googleAuthBtn) {
+    googleAuthBtn.disabled = false;
     if (currentUser) {
       googleAuthBtn.textContent = `Salir Google (${currentUser.email?.split('@')[0] || 'cuenta'})`;
       googleAuthBtn.className = 'btn btn-dark';
@@ -683,6 +768,12 @@ function updateConnectionBadges(): void {
     mobGoogleCard.classList.toggle('hidden', signedInVerified);
     mobAuthCard.classList.toggle('hidden', !signedInVerified);
   }
+  if (mobGoogleVerifyMsg) {
+    mobGoogleVerifyMsg.textContent = 'Inicia sesión con tu cuenta de Google para marcar horas y enviar GPS en tiempo real.';
+  }
+  if (mobGoogleBtn) {
+    mobGoogleBtn.classList.toggle('hidden', signedInVerified);
+  }
   if (mobGoogleEmail) mobGoogleEmail.textContent = currentUser?.email ? `Cuenta: ${currentUser.email}` : '';
 
   if (mobAuthLive) {
@@ -700,8 +791,12 @@ function updateConnectionBadges(): void {
 }
 
 async function handleGoogleAuthToggle(): Promise<void> {
+  if (!authResolved) return;
   if (currentUser) {
     try {
+      localStorage.removeItem(MOB_KEY);
+      sessionStorage.removeItem(MOB_KEY);
+      mobExtraUnlockedForKey = '';
       await signOutGoogle();
       showToast('Sesión de Google cerrada', 'info');
     } catch (err) {
@@ -1208,7 +1303,11 @@ function openTab(tab: AdminTab): void {
   stopCoverAnimation();
 
   if (tab === 'rrhh') {
-    onPayEmpChange();
+    if (!pulledSalary.employeeId) {
+      resetSalaryViewToZero(true);
+    } else {
+      recalcSalaryLive();
+    }
     recalcLegalLive();
     renderExtractos();
     renderExpenses();
@@ -1233,7 +1332,14 @@ function openRrhhSub(sub: RrhhSubTab): void {
     btn.classList.toggle('active', btn.dataset.rsub === sub);
   });
   if (sub === 'pago') recalcSalaryLive();
-  else if (sub === 'legal') recalcLegalLive();
+  else if (sub === 'legal') {
+    const legEmpVal = $<HTMLSelectElement>('legEmp')?.value || '';
+    if (legEmpVal && legInitializedEmpId !== legEmpVal) {
+      onLegEmpChange();
+    } else {
+      recalcLegalLive();
+    }
+  }
   else if (sub === 'ext') renderExtractos();
   else if (sub === 'gastos') renderExpenses();
 }
@@ -1241,25 +1347,67 @@ function openRrhhSub(sub: RrhhSubTab): void {
 // === Admin Tab 1: Hoy ===
 function renderHoy(): void {
   const body = $('hoyBody');
+  const headRow = $('hoyHeadRow');
   const countEl = $('hoyCount');
   if (!body) return;
 
   const t = todayStr();
   let present = 0;
 
-  const rows = state.employees.map((emp) => {
-    const mk = state.marks[makeMarkDocId(emp.id, t)];
-    if (mk && (mk.e1 || mk.e3)) present++;
-    const { normSec, extSec, isWorkingNow } = computeDayHours(mk, t, state.rules, true);
+  const resolved = state.employees.map((emp) => {
+    const todayMk = state.marks[makeMarkDocId(emp.id, t)];
+    const hasTodayMark = Boolean(
+      todayMk && (todayMk.e1 || todayMk.s2 || todayMk.e3 || todayMk.s4 || (todayMk.extraPunches && todayMk.extraPunches.length))
+    );
+    const overnight = !hasTodayMark ? findOpenOvernightMark(emp.id, t) : null;
+    const mk = overnight ? overnight.mark : todayMk;
+    const anchorDate = overnight ? overnight.dateStr : t;
+    return { emp, mk, anchorDate, isOvernight: Boolean(overnight) };
+  });
+
+  const maxExtra = resolved.reduce((mx, r) => Math.max(mx, r.mk?.extraPunches?.length || 0), 0);
+
+  if (headRow) {
+    let extraCols = '';
+    for (let i = 0; i < maxExtra; i++) {
+      extraCols += `<th style="color:#b45309">Ent. Extra ${i + 1}</th><th style="color:#b45309">Sal. Extra ${i + 1}</th>`;
+    }
+    headRow.innerHTML = `<th>Empleado</th><th>C.I.</th><th>Sector</th><th>Ent. 1</th><th>Sal. 2</th><th>Ent. 3</th><th>Sal. 4</th>${extraCols}<th>Normales</th><th>Extras</th>`;
+  }
+
+  const rows = resolved.map(({ emp, mk, anchorDate, isOvernight }) => {
+    const hasAnyPunch = Boolean(
+      mk && (mk.e1 || mk.e3 || (mk.extraPunches && mk.extraPunches.some((p) => p.in)))
+    );
+    if (hasAnyPunch) present++;
+    const { normSec, extSec, isWorkingNow, crossedMidnight } = computeDayHours(mk, anchorDate, state.rules, true);
     const liveDot = isWorkingNow ? ' <span style="color:#16a34a;font-weight:800">●</span>' : '';
+    const nightBadge = isOvernight
+      ? ` <span class="pill-warn" style="font-size:10px;padding:1px 5px">🌙 ${escapeHtml(anchorDate)}</span>`
+      : crossedMidnight
+        ? ` <span title="Turno nocturno cruzó medianoche" style="font-size:11px">🌙</span>`
+        : '';
+
+    const ts = mk?.punchTs || {};
+    const extras = Array.isArray(mk?.extraPunches) ? mk.extraPunches : [];
+    let extraCells = '';
+    for (let i = 0; i < maxExtra; i++) {
+      const pair = extras[i];
+      const inTxt = formatTimeWithNextDayTag(pair?.in, pair?.inTs, anchorDate);
+      const outTxt = formatTimeWithNextDayTag(pair?.out, pair?.outTs, anchorDate);
+      extraCells += `<td style="color:#b45309;font-weight:${pair?.in ? '700' : '400'}">${escapeHtml(inTxt)}</td>`;
+      extraCells += `<td style="color:#b45309;font-weight:${pair?.out ? '700' : '400'}">${escapeHtml(outTxt)}</td>`;
+    }
+
     return `<tr>
-      <td><strong>${escapeHtml(emp.name)}</strong>${liveDot}</td>
+      <td><strong>${escapeHtml(emp.name)}</strong>${liveDot}${nightBadge}</td>
       <td>${escapeHtml(emp.ci)}</td>
       <td>${escapeHtml(emp.sector)}</td>
-      <td>${escapeHtml(mk?.e1 || '—')}</td>
-      <td>${escapeHtml(mk?.s2 || '—')}</td>
-      <td>${escapeHtml(mk?.e3 || '—')}</td>
-      <td>${escapeHtml(mk?.s4 || '—')}</td>
+      <td>${escapeHtml(formatTimeWithNextDayTag(mk?.e1, ts.e1, anchorDate))}</td>
+      <td>${escapeHtml(formatTimeWithNextDayTag(mk?.s2, ts.s2, anchorDate))}</td>
+      <td>${escapeHtml(formatTimeWithNextDayTag(mk?.e3, ts.e3, anchorDate))}</td>
+      <td>${escapeHtml(formatTimeWithNextDayTag(mk?.s4, ts.s4, anchorDate))}</td>
+      ${extraCells}
       <td>${fmtHMS(normSec)}</td>
       <td style="color:#2563eb;font-weight:700">${fmtHMS(extSec)}</td>
     </tr>`;
@@ -1268,7 +1416,7 @@ function renderHoy(): void {
   if (countEl) countEl.textContent = `${t} • Presentes: ${present} / ${state.employees.length}`;
   body.innerHTML = rows.length
     ? rows.join('')
-    : `<tr><td colspan="9" style="text-align:center;color:#64748b;padding:18px">Sin funcionarios registrados aún. Crea uno en Empleados o desde el celular.</td></tr>`;
+    : `<tr><td colspan="${9 + maxExtra * 2}" style="text-align:center;color:#64748b;padding:18px">Sin funcionarios registrados aún. Crea uno en Empleados o desde el celular.</td></tr>`;
 }
 
 // === Admin Tab 3: Empleados (Separado y Desplegable) ===
@@ -1621,16 +1769,42 @@ function syncPayIpsFromEmployee(emp: EmployeeDoc | undefined): void {
   if (ipsInput) ipsInput.value = String(empIpsGs);
 }
 
+function resetSalaryViewToZero(silent = true): void {
+  const t = todayStr();
+  pulledSalary = {
+    employeeId: '',
+    periodStart: t,
+    periodEnd: t,
+    daysCount: 0,
+    normalSec: 0,
+    extraSec: 0,
+    previousBalance: 0,
+  };
+  const setVal = (id: string, val: string) => {
+    const el = $<HTMLInputElement>(id);
+    if (el) el.value = val;
+  };
+  setVal('payRate', '0');
+  setVal('payOtPct', '50');
+  setVal('payIpsInput', '0');
+  const ipsChk = $<HTMLInputElement>('payApplyIps');
+  if (ipsChk) ipsChk.checked = false;
+  const rangeInfo = $('payRangeInfo');
+  if (rangeInfo) {
+    rangeInfo.textContent = 'Selecciona un funcionario y presiona "Estirar Horas desde Último Cierre" para cargar desde Firestore.';
+  }
+  const periodBadge = $('payPeriodBadge');
+  if (periodBadge) {
+    periodBadge.textContent = 'En espera (0h)';
+    periodBadge.className = 'pill-blue';
+  }
+  recalcSalaryLive();
+  if (!silent) showToast('Pantalla de Pago de Salario limpia', 'info');
+}
+
 function onPayEmpChange(): void {
-  const empId = $<HTMLSelectElement>('payEmp')?.value || '';
-  const emp = state.employees.find((e) => e.id === empId);
-  if (!emp) return;
-  const rateEl = $<HTMLInputElement>('payRate');
-  const otEl = $<HTMLInputElement>('payOtPct');
-  if (rateEl) rateEl.value = String(emp.hourlyRate ?? 15000);
-  if (otEl) otEl.value = String(emp.overtimePct ?? 50);
-  syncPayIpsFromEmployee(emp);
-  pullHoursSinceLastClose(true);
+  // Never auto-load hours or Firestore data on dropdown change; stay at 0 until user clicks "Estirar Horas desde Último Cierre"
+  resetSalaryViewToZero(true);
 }
 
 function onPayApplyIpsToggle(): void {
@@ -1670,37 +1844,10 @@ function onPayIpsManualInput(): void {
 }
 
 function clearSalaryForm(): void {
-  const t = todayStr();
-  pulledSalary = {
-    employeeId: '',
-    periodStart: t,
-    periodEnd: t,
-    daysCount: 0,
-    normalSec: 0,
-    extraSec: 0,
-    previousBalance: 0,
-  };
-  const setVal = (id: string, val: string) => {
-    const el = $<HTMLInputElement>(id);
-    if (el) el.value = val;
-  };
-  setVal('payRate', '0');
-  setVal('payOtPct', '50');
-  setVal('payIpsInput', '0');
-  const ipsChk = $<HTMLInputElement>('payApplyIps');
-  if (ipsChk) ipsChk.checked = false;
-  const rangeInfo = $('payRangeInfo');
-  if (rangeInfo) rangeInfo.textContent = 'Formulario limpio. Selecciona un funcionario y presiona "Estirar Horas desde Último Cierre".';
-  const periodBadge = $('payPeriodBadge');
-  if (periodBadge) {
-    periodBadge.textContent = 'Limpio / Listo';
-    periodBadge.className = 'pill-blue';
-  }
-  recalcSalaryLive();
-  showToast('Pantalla de Pago de Salario limpia', 'info');
+  resetSalaryViewToZero(false);
 }
 
-function pullHoursSinceLastClose(silent = false): void {
+async function pullHoursSinceLastClose(silent = false): Promise<void> {
   const empId = $<HTMLSelectElement>('payEmp')?.value || '';
   const emp = state.employees.find((e) => e.id === empId);
   if (!emp) {
@@ -1708,8 +1855,27 @@ function pullHoursSinceLastClose(silent = false): void {
     return;
   }
 
+  // Execute fresh Firestore read on demand when user presses "Estirar Horas desde Último Cierre"
+  if (currentUser && currentUser.emailVerified) {
+    try {
+      const snap = await getDocs(query(collection(db, 'marks'), where('employeeId', '==', emp.id)));
+      snap.docs.forEach((d) => {
+        state.marks[d.id] = { id: d.id, ...(d.data() as Omit<AttendanceMarkDoc, 'id'>) };
+      });
+      saveLocalCache();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, `marks(employeeId=${emp.id})`);
+    }
+  }
+
+  const rateEl = $<HTMLInputElement>('payRate');
+  const otEl = $<HTMLInputElement>('payOtPct');
+  if (rateEl) rateEl.value = String(emp.hourlyRate ?? 15000);
+  if (otEl) otEl.value = String(emp.overtimePct ?? 50);
+
   const lastClosed = emp.lastClosedDate || '';
   const today = todayStr();
+  const yesterday = shiftDateStr(today, -1);
 
   // Gather all marks strictly after lastClosedDate up to today
   const openMarks = Object.values(state.marks)
@@ -1721,7 +1887,12 @@ function pullHoursSinceLastClose(silent = false): void {
   let daysCount = 0;
 
   for (const mk of openMarks) {
-    const { workedSec, normSec, extSec } = computeDayHours(mk, mk.date, state.rules, mk.date === today);
+    const { workedSec, normSec, extSec } = computeDayHours(
+      mk,
+      mk.date,
+      state.rules,
+      mk.date === today || mk.date === yesterday
+    );
     if (workedSec > 0) {
       daysCount++;
       normalSec += normSec;
@@ -1899,7 +2070,7 @@ async function liquidateAndClosePeriod(): Promise<void> {
     });
 
     showToast(`✓ Período cerrado hasta ${c.periodEnd}. Saldo Anterior = 0 Gs.`, 'ok');
-    window.setTimeout(() => pullHoursSinceLastClose(true), 300);
+    window.setTimeout(() => void pullHoursSinceLastClose(true), 300);
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, `payrolls/${payrollId}`);
     showToast('Error al liquidar y cerrar período en Firestore', 'err');
@@ -2061,24 +2232,63 @@ function onLegReasonChange(): void {
   recalcLegalLive();
 }
 
+let legWageSource: 'hourly' | 'monthly' = 'hourly';
+let legInitializedEmpId = '';
+
+function onLegHourlyRateInput(): void {
+  const hr = Math.max(0, Number($<HTMLInputElement>('legHourlyRate')?.value) || 0);
+  const salEl = $<HTMLInputElement>('legSalary');
+  if (hr > 0) {
+    legWageSource = 'hourly';
+    if (salEl) salEl.value = String(Math.round(hr * 8 * 30));
+  } else {
+    legWageSource = 'monthly';
+  }
+  recalcLegalLive();
+}
+
+function onLegSalaryInput(): void {
+  const sal = Math.max(0, Number($<HTMLInputElement>('legSalary')?.value) || 0);
+  const hrEl = $<HTMLInputElement>('legHourlyRate');
+  legWageSource = 'monthly';
+  if (hrEl) {
+    hrEl.value = sal > 0 ? String(Math.round(sal / 240)) : '0';
+  }
+  recalcLegalLive();
+}
+
 function onLegEmpChange(): void {
   const empId = $<HTMLSelectElement>('legEmp')?.value || '';
   const emp = state.employees.find((e) => e.id === empId);
   if (!emp) return;
+  legInitializedEmpId = emp.id;
+
   const hireEl = $<HTMLInputElement>('legHireDate');
+  const hrEl = $<HTMLInputElement>('legHourlyRate');
   const salEl = $<HTMLInputElement>('legSalary');
   const pendEl = $<HTMLInputElement>('legPendingDays');
+  const manYrsEl = $<HTMLInputElement>('legManualYears');
   const ipsEl = $<HTMLInputElement>('legApplyIps');
 
   if (hireEl) hireEl.value = emp.hireDate || todayStr();
-  if (salEl && emp.hourlyRate) {
-    // Estimated monthly wage (208h/month or minimum wage if lower)
-    salEl.value = String(Math.max(2798309, Math.round(emp.hourlyRate * 208)));
+  if (manYrsEl) manYrsEl.value = '0';
+
+  const empNormalRate = Math.max(0, Number(emp.hourlyRate ?? 0));
+  if (empNormalRate > 0) {
+    legWageSource = 'hourly';
+    if (hrEl) hrEl.value = String(empNormalRate);
+    // Jornal diario ordinario = Hora Normal × 8h; Salario ordinario mensual (30 días) = Jornal × 30 (sin horas extras)
+    if (salEl) salEl.value = String(Math.round(empNormalRate * 8 * 30));
+  } else {
+    legWageSource = 'monthly';
+    if (hrEl) hrEl.value = '0';
+    if (salEl) salEl.value = '2798309';
   }
+
   if (ipsEl) {
     ipsEl.checked = Boolean(emp.hasIps);
   }
-  // Connect with unclosed attendance days from Pago de Salario (marks strictly after lastClosedDate)
+  // Connect with unclosed ordinary worked days strictly after lastClosedDate (never summing overtime Gs.)
   if (pendEl) {
     const lastClosed = emp.lastClosedDate || '';
     const today = todayStr();
@@ -2086,7 +2296,8 @@ function onLegEmpChange(): void {
       if (m.employeeId !== emp.id) return false;
       if (lastClosed && m.date <= lastClosed) return false;
       if (m.date > today) return false;
-      return computeDayHours(m, m.date, state.rules, m.date === today).workedSec > 0;
+      const day = computeDayHours(m, m.date, state.rules, m.date === today);
+      return day.normSec > 0 || day.baseWorkedSec > 0;
     }).length;
     pendEl.value = String(Math.min(31, openWorkedDays));
   }
@@ -2099,10 +2310,13 @@ function clearLegalForm(): void {
     const el = $<HTMLInputElement>(id);
     if (el) el.value = val;
   };
+  legWageSource = 'hourly';
   setVal('legHireDate', t);
   setVal('legExitDate', t);
+  setVal('legHourlyRate', '0');
   setVal('legSalary', '0');
   setVal('legPendingDays', '0');
+  setVal('legManualYears', '0');
   setVal('legUnpaidVac', '0');
   setVal('legCustomReason', '');
   const reasonEl = $<HTMLSelectElement>('legReason');
@@ -2140,8 +2354,10 @@ function getCurrentLegalCalc() {
   };
   const reasonLabel = reasonMap[reason] || reason;
 
+  const normalHourlyRate = Math.max(0, Number($<HTMLInputElement>('legHourlyRate')?.value) || 0);
   const monthlySalary = Math.max(0, Number($<HTMLInputElement>('legSalary')?.value) || 0);
   const pendingDays = Math.max(0, Number($<HTMLInputElement>('legPendingDays')?.value) || 0);
+  const manualYearsWorked = Math.max(0, Number($<HTMLInputElement>('legManualYears')?.value) || 0);
   const unpaidVacationDays = Math.max(0, Number($<HTMLInputElement>('legUnpaidVac')?.value) || 0);
   const activeExtraConcepts = legalExtraConcepts
     .map((item, idx) => ({
@@ -2157,8 +2373,11 @@ function getCurrentLegalCalc() {
     hireDate,
     exitDate,
     monthlySalary,
+    normalHourlyRate,
+    useHourlyRateBase: legWageSource === 'hourly' && normalHourlyRate > 0,
     reason,
     pendingDays,
+    manualYearsWorked,
     unpaidVacationDays,
     manualBonusGs: manualAmount,
     applyIps,
@@ -2171,8 +2390,10 @@ function getCurrentLegalCalc() {
     reason,
     customReason,
     reasonLabel,
-    monthlySalary,
+    normalHourlyRate,
+    monthlySalary: res.ordinaryMonthlySalary,
     pendingDays,
+    manualYearsWorked,
     unpaidVacationDays,
     activeExtraConcepts,
     manualAmount,
@@ -2189,25 +2410,35 @@ function recalcLegalLive(): void {
     if (el) el.textContent = val;
   };
 
-  setTxt('legTenureBadge', `Antigüedad: ${res.years} año(s), ${res.months} mes(es), ${res.days} día(s)`);
+  setTxt(
+    'legDailyWageBadge',
+    res.usedHourlyRateBase
+      ? `Jornal Diario Base: ${fmtGs(res.dailyWage)} (${fmtGs(res.normalHourlyRate)}/h × 8h • Sin horas extras)`
+      : `Jornal Diario Base: ${fmtGs(res.dailyWage)} (Salario ordinario ÷ 30 • Sin horas extras)`
+  );
+
+  setTxt(
+    'legTenureBadge',
+    `Antigüedad: ${res.years} año(s), ${res.months} mes(es), ${res.days} día(s)${res.usedManualYears ? ' (manual)' : ''}`
+  );
 
   const ruleNoteEl = $('legRuleNote');
   if (ruleNoteEl) {
     ruleNoteEl.innerHTML = res.isUnderSixMonths
-      ? `<div class="pill-warn">Antigüedad menor a 6 meses: según Código Laboral PY solo corresponde salario pendiente, aguinaldo proporcional y vacaciones.</div>`
+      ? `<div class="pill-warn">Antigüedad menor a 6 meses: según Código Laboral PY solo corresponde salario pendiente, aguinaldo proporcional y vacaciones (sobre jornal diario ordinario, sin horas extras).</div>`
       : c.reason !== 'despido_injustificado'
-        ? `<div class="pill-blue">Motivo (${escapeHtml(c.reasonLabel)}): sin preaviso ni indemnización por antigüedad automática.</div>`
-        : `<div class="pill-ok">Despido Injustificado: incluye Preaviso (${res.preavisoDays} días) + Indemnización por Antigüedad (${res.indemYearsCount} año(s) × 15 días = ${res.indemDays} días).</div>`;
+        ? `<div class="pill-blue">Motivo (${escapeHtml(c.reasonLabel)}): sin preaviso ni indemnización por antigüedad automática. Cálculo sobre jornal ordinario (${fmtGs(res.dailyWage)}/día, sin horas extras).</div>`
+        : `<div class="pill-ok">Despido Injustificado: incluye Preaviso (${res.preavisoDays} días) + Indemnización por Antigüedad (${res.indemYearsCount} año(s) × 15 días = ${res.indemDays} días) sobre jornal diario ordinario (${fmtGs(res.dailyWage)}/día — excluye horas extras).</div>`;
   }
 
-  setTxt('legRow1Det', `${c.pendingDays} días × ${fmtGs(res.dailyWage)} (Imponible IPS)`);
+  setTxt('legRow1Det', `${c.pendingDays} días × ${fmtGs(res.dailyWage)} jornal ordinario (Imponible IPS)`);
   setTxt('legRow1Amt', fmtGs(res.pendingSalaryGs));
   setTxt('legRow2Amt', fmtGs(res.aguinaldoGs));
-  setTxt('legRow3Det', `Escala ${res.vacAnnualDays}d (${c.unpaidVacationDays} caus. + ${res.vacPropDays} prop.)`);
+  setTxt('legRow3Det', `Escala ${res.vacAnnualDays}d (${c.unpaidVacationDays} caus. + ${res.vacPropDays} prop.) × ${fmtGs(res.dailyWage)}`);
   setTxt('legRow3Amt', fmtGs(res.vacacionesGs));
-  setTxt('legRow4Det', `${res.preavisoDays} días — Libre de IPS`);
+  setTxt('legRow4Det', `${res.preavisoDays} días × ${fmtGs(res.dailyWage)} — Libre de IPS`);
   setTxt('legRow4Amt', fmtGs(res.preavisoGs));
-  setTxt('legRow5Det', `${res.indemDays} días (15d/año o frac. >6m) — Libre de IPS`);
+  setTxt('legRow5Det', `${res.indemDays} días (15d/año o frac. >6m) × ${fmtGs(res.dailyWage)} — Libre de IPS`);
   setTxt('legRow5Amt', fmtGs(res.indemnizacionGs));
   setTxt('legRow7Det', `Solo sobre imponibles (${fmtGs(res.imponibleBaseGs)})`);
   setTxt('legRow7Amt', `- ${fmtGs(res.ipsDeductionGs)}`);
@@ -2227,6 +2458,10 @@ function buildLegalReceiptDoc(): ReceiptDocument {
   const empCi = c.emp?.ci || '—';
   const sector = c.emp?.sector || '—';
 
+  const baseDesc = res.usedHourlyRateBase
+    ? `Hora Normal ${fmtGs(res.normalHourlyRate)} × 8h = Jornal Diario Base ${fmtGs(res.dailyWage)} (sin horas extras)`
+    : `Salario Ordinario ${fmtGs(res.ordinaryMonthlySalary)} ÷ 30 = Jornal Diario Base ${fmtGs(res.dailyWage)} (sin horas extras)`;
+
   const manualRowsHtml = c.activeExtraConcepts
     .map((item) => fmtGsRow(`Concepto Manual: ${item.concept}`, item.amount))
     .join('');
@@ -2238,23 +2473,23 @@ function buildLegalReceiptDoc(): ReceiptDocument {
     <p style="font-size:12px;margin-bottom:8px">
       <strong>Funcionario:</strong> ${escapeHtml(empName)} | <strong>C.I.:</strong> ${escapeHtml(empCi)} | <strong>Sector:</strong> ${escapeHtml(sector)}<br/>
       <strong>Ingreso:</strong> ${escapeHtml(c.hireDate)} | <strong>Salida:</strong> ${escapeHtml(c.exitDate)} | <strong>Antigüedad:</strong> ${res.years}a ${res.months}m ${res.days}d<br/>
-      <strong>Motivo:</strong> ${escapeHtml(c.reasonLabel)} | <strong>Salario Base:</strong> ${fmtGs(c.monthlySalary)}
+      <strong>Motivo:</strong> ${escapeHtml(c.reasonLabel)} | <strong>Base Ordinaria:</strong> ${escapeHtml(baseDesc)}
     </p>
     <table>
-      <thead><tr><th>Concepto (Código Laboral PY)</th><th style="text-align:right">Importe (Gs.)</th></tr></thead>
+      <thead><tr><th>Concepto (Código Laboral PY — Exclusivo Salario Ordinario)</th><th style="text-align:right">Importe (Gs.)</th></tr></thead>
       <tbody>
-        ${fmtGsRow(`Salario Pendiente (${c.pendingDays} días)`, res.pendingSalaryGs)}
-        ${fmtGsRow('Aguinaldo Proporcional (1/12 — Libre de IPS)', res.aguinaldoGs)}
-        ${fmtGsRow(`Vacaciones Causadas/Prop. (escala ${res.vacAnnualDays}d)`, res.vacacionesGs)}
-        ${fmtGsRow(`Preaviso Art. 87 (${res.preavisoDays} días)`, res.preavisoGs)}
-        ${fmtGsRow(`Indemnización Antigüedad Art. 91 (${res.indemDays} días)`, res.indemnizacionGs)}
+        ${fmtGsRow(`Salario Pendiente (${c.pendingDays} días × ${fmtGs(res.dailyWage)})`, res.pendingSalaryGs)}
+        ${fmtGsRow('Aguinaldo Proporcional (1/12 sobre salario ordinario — Libre de IPS)', res.aguinaldoGs)}
+        ${fmtGsRow(`Vacaciones Causadas/Prop. Art. 218 (escala ${res.vacAnnualDays}d × ${fmtGs(res.dailyWage)})`, res.vacacionesGs)}
+        ${fmtGsRow(`Preaviso Art. 87 (${res.preavisoDays} días × ${fmtGs(res.dailyWage)})`, res.preavisoGs)}
+        ${fmtGsRow(`Indemnización Antigüedad Art. 91 (${res.indemDays} días × ${fmtGs(res.dailyWage)})`, res.indemnizacionGs)}
         ${manualRowsHtml}
         ${fmtGsRow('Descuento IPS (9% solo sobre conceptos imponibles)', -res.ipsDeductionGs)}
         ${fmtGsRow('TOTAL NETO LIQUIDACIÓN FINAL', res.netTotalGs, true)}
       </tbody>
     </table>`;
 
-  const plainTextSummary = `CARL PETERS — Liquidación Final Legal (PY)\nFuncionario: ${empName} (C.I. ${empCi})\nIngreso: ${c.hireDate} | Salida: ${c.exitDate} (${res.years}a ${res.months}m)\nMotivo: ${c.reasonLabel}\n• Salario Pendiente: ${fmtGs(res.pendingSalaryGs)}\n• Aguinaldo Prop.: ${fmtGs(res.aguinaldoGs)}\n• Vacaciones: ${fmtGs(res.vacacionesGs)}\n• Preaviso: ${fmtGs(res.preavisoGs)}\n• Indemnización: ${fmtGs(res.indemnizacionGs)}${manualWaLines}\n• IPS 9%: -${fmtGs(res.ipsDeductionGs)}\nTOTAL NETO: ${fmtGs(res.netTotalGs)}`;
+  const plainTextSummary = `CARL PETERS — Liquidación Final Legal (PY)\nFuncionario: ${empName} (C.I. ${empCi})\nIngreso: ${c.hireDate} | Salida: ${c.exitDate} (${res.years}a ${res.months}m)\nMotivo: ${c.reasonLabel}\nBase: ${baseDesc}\n• Salario Pendiente (${c.pendingDays}d): ${fmtGs(res.pendingSalaryGs)}\n• Aguinaldo Prop.: ${fmtGs(res.aguinaldoGs)}\n• Vacaciones Art. 218: ${fmtGs(res.vacacionesGs)}\n• Preaviso Art. 87 (${res.preavisoDays}d): ${fmtGs(res.preavisoGs)}\n• Indemnización Art. 91 (${res.indemDays}d): ${fmtGs(res.indemnizacionGs)}${manualWaLines}\n• IPS 9%: -${fmtGs(res.ipsDeductionGs)}\nTOTAL NETO: ${fmtGs(res.netTotalGs)}`;
 
   return {
     title: 'RECIBO OFICIAL DE LIQUIDACIÓN FINAL E INDEMNIZACIÓN',
@@ -2278,7 +2513,7 @@ async function saveLegalLiquidation(): Promise<void> {
   }
   const ok = await openModal({
     title: `Registrar Liquidación Legal — ${c.emp.name}`,
-    body: `Motivo: ${c.reasonLabel}\n¿Confirmas registrar la liquidación final legal por ${fmtGs(c.res.netTotalGs)} en Firestore?`,
+    body: `Motivo: ${c.reasonLabel}\nJornal diario ordinario (sin extras): ${fmtGs(c.res.dailyWage)}\n¿Confirmas registrar la liquidación final legal por ${fmtGs(c.res.netTotalGs)} en Firestore?`,
     confirmText: 'Guardar Liquidación',
     confirmClass: 'btn-ok',
   });
@@ -2301,15 +2536,15 @@ async function saveLegalLiquidation(): Promise<void> {
       daysCount: c.res.totalDaysService,
       normalSec: 0,
       extraSec: 0,
-      hourlyRate: c.emp.hourlyRate ?? 15000,
-      overtimePct: c.emp.overtimePct ?? 50,
+      hourlyRate: c.normalHourlyRate || c.emp.hourlyRate || 0,
+      overtimePct: 0,
       normalSubtotal: c.res.pendingSalaryGs + c.res.vacacionesGs,
       extraSubtotal: c.res.aguinaldoGs + c.res.preavisoGs + c.res.indemnizacionGs + c.res.manualBonusGs,
       previousBalance: 0,
       ipsDeduction: c.res.ipsDeductionGs,
       netTotal: c.res.netTotalGs,
       ipsApplied: c.applyIps,
-      summary: `Liquidación Legal (${c.reasonLabel}): Salario ${fmtGs(c.res.pendingSalaryGs)}, Ag. ${fmtGs(c.res.aguinaldoGs)}, Vac. ${fmtGs(c.res.vacacionesGs)}, Preav. ${fmtGs(c.res.preavisoGs)}, Indem. ${fmtGs(c.res.indemnizacionGs)}${manualPart}.`.slice(0, SCHEMA_LIMITS.SUMMARY_MAX),
+      summary: `Liquidación Legal (${c.reasonLabel}) — Jornal ordinario ${fmtGs(c.res.dailyWage)} (sin extras): Salario ${fmtGs(c.res.pendingSalaryGs)}, Ag. ${fmtGs(c.res.aguinaldoGs)}, Vac. ${fmtGs(c.res.vacacionesGs)}, Preav. ${fmtGs(c.res.preavisoGs)}, Indem. ${fmtGs(c.res.indemnizacionGs)}${manualPart}.`.slice(0, SCHEMA_LIMITS.SUMMARY_MAX),
       createdAt: serverTimestamp(),
     });
     showToast('✓ Liquidación legal registrada en Firestore', 'ok');
@@ -2785,8 +3020,8 @@ function refreshPulledSalaryHoursSilently(): void {
       ? shiftDateStr(lastClosed, 1)
       : today;
 
-  // Keep synced with latest marks whenever Pago de Salario is tracking this employee (unless explicitly cleared)
-  if (pulledSalary.employeeId === emp.id || pulledSalary.employeeId !== '') {
+  // Keep synced ONLY if user has explicitly pulled hours for this employee (never auto-load when pulledSalary.employeeId === '')
+  if (pulledSalary.employeeId === emp.id) {
     pulledSalary = {
       employeeId: emp.id,
       periodStart,
@@ -2821,6 +3056,33 @@ function syncGlobalMarksDependents(): void {
   renderMobShell();
 }
 
+function cleanPunchTs(raw?: PunchTimestamps): PunchTimestamps {
+  const out: PunchTimestamps = {};
+  if (!raw) return out;
+  (['e1', 's2', 'e3', 's4'] as BaseMarkSlot[]).forEach((k) => {
+    const v = raw[k];
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) out[k] = v;
+  });
+  return out;
+}
+
+function cleanExtraPunches(raw?: ExtraPunchPair[]): ExtraPunchPair[] {
+  if (!Array.isArray(raw)) return [];
+  const cleaned = raw.slice(0, 20).map((p) => {
+    const item: ExtraPunchPair = {
+      in: typeof p?.in === 'string' ? p.in : '',
+      out: typeof p?.out === 'string' ? p.out : '',
+    };
+    if (typeof p?.inTs === 'number' && Number.isFinite(p.inTs) && p.inTs > 0) item.inTs = p.inTs;
+    if (typeof p?.outTs === 'number' && Number.isFinite(p.outTs) && p.outTs > 0) item.outTs = p.outTs;
+    return item;
+  });
+  while (cleaned.length > 0 && !cleaned[cleaned.length - 1].in && !cleaned[cleaned.length - 1].out) {
+    cleaned.pop();
+  }
+  return cleaned;
+}
+
 async function saveCalendarMarkSlot(empId: string, dateStr: string, slot: MarkSlot, rawTime: string): Promise<boolean> {
   if (!currentUser || !isCloudAdmin) {
     showToast('Conecta tu cuenta Google Administrador para editar o agregar horas en Firestore', 'err');
@@ -2845,6 +3107,59 @@ async function saveCalendarMarkSlot(empId: string, dateStr: string, slot: MarkSl
   const existingMark = state.marks[markId];
   const markRef = doc(db, 'marks', markId);
 
+  const nextBase: Record<BaseMarkSlot, string> = {
+    e1: existingMark?.e1 || '',
+    s2: existingMark?.s2 || '',
+    e3: existingMark?.e3 || '',
+    s4: existingMark?.s4 || '',
+  };
+  const nextTs = cleanPunchTs(existingMark?.punchTs);
+  const nextExtras = cleanExtraPunches(existingMark?.extraPunches);
+
+  const exInfo = parseExtraSlot(slot);
+  if (exInfo) {
+    while (nextExtras.length <= exInfo.idx) {
+      nextExtras.push({ in: '', out: '' });
+    }
+    const pair = { ...nextExtras[exInfo.idx] };
+    pair[exInfo.field] = normalized;
+    if (exInfo.field === 'in') {
+      const inMs = normalized ? localDateTimeToMs(dateStr, normalized) : null;
+      if (inMs) pair.inTs = inMs;
+      else delete pair.inTs;
+      if (pair.out) {
+        let outMs = localDateTimeToMs(dateStr, pair.out);
+        if (outMs && inMs && outMs < inMs) outMs += 86400000;
+        if (outMs) pair.outTs = outMs;
+      }
+    } else {
+      let outMs = normalized ? localDateTimeToMs(dateStr, normalized) : null;
+      const refInMs = pair.inTs ?? (pair.in ? localDateTimeToMs(dateStr, pair.in) : null);
+      if (outMs && refInMs && outMs < refInMs) outMs += 86400000;
+      if (outMs) pair.outTs = outMs;
+      else delete pair.outTs;
+    }
+    nextExtras[exInfo.idx] = pair;
+  } else {
+    const bSlot = slot as BaseMarkSlot;
+    nextBase[bSlot] = normalized;
+    if (!normalized) {
+      delete nextTs[bSlot];
+    } else {
+      let ms = localDateTimeToMs(dateStr, normalized);
+      if (ms && bSlot === 's2' && nextBase.e1) {
+        const refIn = nextTs.e1 ?? localDateTimeToMs(dateStr, nextBase.e1);
+        if (refIn && ms < refIn) ms += 86400000;
+      } else if (ms && bSlot === 's4' && nextBase.e3) {
+        const refIn = nextTs.e3 ?? localDateTimeToMs(dateStr, nextBase.e3);
+        if (refIn && ms < refIn) ms += 86400000;
+      }
+      if (ms) nextTs[bSlot] = ms;
+    }
+  }
+
+  const finalExtras = cleanExtraPunches(nextExtras);
+
   try {
     if (!existingMark) {
       const nextDoc: AttendanceMarkDoc = {
@@ -2852,10 +3167,12 @@ async function saveCalendarMarkSlot(empId: string, dateStr: string, slot: MarkSl
         employeeId: emp.id,
         ownerUid: emp.ownerUid || currentUser.uid,
         date: dateStr,
-        e1: slot === 'e1' ? normalized : '',
-        s2: slot === 's2' ? normalized : '',
-        e3: slot === 'e3' ? normalized : '',
-        s4: slot === 's4' ? normalized : '',
+        e1: nextBase.e1,
+        s2: nextBase.s2,
+        e3: nextBase.e3,
+        s4: nextBase.s4,
+        punchTs: nextTs,
+        extraPunches: finalExtras,
         lat: 0,
         lng: 0,
         hasGps: false,
@@ -2868,6 +3185,8 @@ async function saveCalendarMarkSlot(empId: string, dateStr: string, slot: MarkSl
         s2: nextDoc.s2,
         e3: nextDoc.e3,
         s4: nextDoc.s4,
+        punchTs: nextTs,
+        extraPunches: finalExtras,
         lat: 0,
         lng: 0,
         hasGps: false,
@@ -2877,25 +3196,33 @@ async function saveCalendarMarkSlot(empId: string, dateStr: string, slot: MarkSl
       state.marks[markId] = nextDoc;
     } else {
       await updateDoc(markRef, {
-        [slot]: normalized,
+        e1: nextBase.e1,
+        s2: nextBase.s2,
+        e3: nextBase.e3,
+        s4: nextBase.s4,
+        punchTs: nextTs,
+        extraPunches: finalExtras,
         updatedAt: serverTimestamp(),
       });
-      state.marks[markId] = { ...existingMark, [slot]: normalized };
+      state.marks[markId] = {
+        ...existingMark,
+        e1: nextBase.e1,
+        s2: nextBase.s2,
+        e3: nextBase.e3,
+        s4: nextBase.s4,
+        punchTs: nextTs,
+        extraPunches: finalExtras,
+      };
     }
 
     saveLocalCache();
     activeCalEdit = null;
     syncGlobalMarksDependents();
-    const slotNames: Record<MarkSlot, string> = {
-      e1: 'Ent. 1',
-      s2: 'Sal. 2',
-      e3: 'Ent. 3',
-      s4: 'Sal. 4',
-    };
+    const slotLabel = getSlotDisplayName(slot);
     showToast(
       normalized
-        ? `✓ ${slotNames[slot]} (${dateStr}) guardada: ${normalized} — todo recalculado`
-        : `✓ ${slotNames[slot]} (${dateStr}) borrada — todo recalculado`,
+        ? `✓ ${slotLabel} (${dateStr}) guardada: ${normalized} — todo recalculado`
+        : `✓ ${slotLabel} (${dateStr}) borrada — todo recalculado`,
       'ok'
     );
     return true;
@@ -2949,6 +3276,24 @@ function openAddHourModal(): void {
     const t = todayStr();
     dateEl.value = t.startsWith(calMonth) ? t : `${calMonth}-01`;
   }
+  const slotSel = $<HTMLSelectElement>('addHrSlot');
+  if (slotSel) {
+    const targetEmp = empSel?.value || calEmpVal;
+    const maxExtraFound = Object.values(state.marks)
+      .filter((m) => !targetEmp || m.employeeId === targetEmp)
+      .reduce((mx, m) => Math.max(mx, m.extraPunches?.length || 0), 0);
+    const totalPairs = Math.min(10, Math.max(4, maxExtraFound + 1));
+    let opts = `
+      <option value="e1">1. Ent. 1 (Entrada Mañana)</option>
+      <option value="s2">2. Sal. 2 (Salida Almuerzo)</option>
+      <option value="e3">3. Ent. 3 (Entrada Tarde)</option>
+      <option value="s4">4. Sal. 4 (Salida Final)</option>`;
+    for (let i = 0; i < totalPairs; i++) {
+      opts += `<option value="ex_${i}_in">${4 + i * 2 + 1}. Entrada Extra ${i + 1}</option>`;
+      opts += `<option value="ex_${i}_out">${4 + i * 2 + 2}. Salida Extra ${i + 1}</option>`;
+    }
+    slotSel.innerHTML = opts;
+  }
   const timeEl = $<HTMLInputElement>('addHrTime');
   if (timeEl) timeEl.value = nowTimeStr();
   modal.classList.remove('hidden');
@@ -2962,7 +3307,8 @@ async function saveAddHourModal(event: Event): Promise<void> {
   event.preventDefault();
   const empId = $<HTMLSelectElement>('addHrEmp')?.value || '';
   const dateStr = $<HTMLInputElement>('addHrDate')?.value || '';
-  const slot = ($<HTMLSelectElement>('addHrSlot')?.value || 'e1') as MarkSlot;
+  const rawSlot = $<HTMLSelectElement>('addHrSlot')?.value || 'e1';
+  const slot: MarkSlot = isValidMarkSlot(rawSlot) ? rawSlot : 'e1';
   const rawTime = $<HTMLInputElement>('addHrTime')?.value || '';
 
   const ok = await saveCalendarMarkSlot(empId, dateStr, slot, rawTime);
@@ -3004,6 +3350,7 @@ function renderCal(): void {
   const sumEl = $('calSummary');
   const titleEl = $('calPlanillaTitle');
   const badgeEl = $('calStatusBadge');
+  const headRow = $('calHeadRow');
   const body = $('calBody');
   if (!body) return;
 
@@ -3019,13 +3366,35 @@ function renderCal(): void {
 
   const dates = getMonthDates(month, per);
   const lastClosed = emp.lastClosedDate || '';
+  const today = todayStr();
+  const yesterday = shiftDateStr(today, -1);
+
+  const maxExtra = dates.reduce((mx, d) => {
+    const mk = state.marks[makeMarkDocId(emp.id, d)];
+    return Math.max(mx, mk?.extraPunches?.length || 0);
+  }, 0);
+
+  if (headRow) {
+    let extraThs = '';
+    for (let i = 0; i < maxExtra; i++) {
+      extraThs += `<th style="color:#b45309">Ent. Extra ${i + 1}</th><th style="color:#b45309">Sal. Extra ${i + 1}</th>`;
+    }
+    headRow.innerHTML = `<th>Fecha</th><th>Estado</th><th>Ent. 1</th><th>Sal. 2</th><th>Ent. 3</th><th>Sal. 4</th>${extraThs}<th>Normales</th><th>Extras</th><th>Total</th>`;
+  }
+
   let totNorm = 0;
   let totExt = 0;
   let daysWorked = 0;
   let closedDays = 0;
   let openDays = 0;
 
-  const renderSlotCell = (dateStr: string, slot: MarkSlot, currentVal?: string): string => {
+  const renderSlotCell = (
+    dateStr: string,
+    slot: MarkSlot,
+    currentVal?: string,
+    punchTsMs?: number,
+    isExtraCol = false
+  ): string => {
     const isEditing =
       activeCalEdit &&
       activeCalEdit.empId === emp.id &&
@@ -3044,18 +3413,24 @@ function renderCal(): void {
       </td>`;
     }
 
-    const displayVal = currentVal || '—';
-    return `<td>
+    const displayVal = formatTimeWithNextDayTag(currentVal, punchTsMs, dateStr);
+    const extraStyle = isExtraCol && currentVal ? ' style="color:#b45309;font-weight:700"' : '';
+    return `<td${extraStyle}>
       <span class="cal-cell">
         <span>${escapeHtml(displayVal)}</span>
-        <button type="button" class="cal-edit-ico no-print" data-cal-edit="${escapeHtml(dateStr)}|${slot}" title="Editar ${slot.toUpperCase()} (HH:MM:SS)">✎</button>
+        <button type="button" class="cal-edit-ico no-print" data-cal-edit="${escapeHtml(dateStr)}|${slot}" title="Editar ${escapeHtml(getSlotDisplayName(slot))} (HH:MM:SS)">✎</button>
       </span>
     </td>`;
   };
 
   const rows = dates.map((d) => {
     const mk = state.marks[makeMarkDocId(emp.id, d)];
-    const { workedSec, normSec, extSec } = computeDayHours(mk, d, state.rules, d === todayStr());
+    const { workedSec, normSec, extSec, crossedMidnight } = computeDayHours(
+      mk,
+      d,
+      state.rules,
+      d === today || d === yesterday
+    );
     const isClosed = Boolean(lastClosed && d <= lastClosed);
     if (isClosed) closedDays++;
     else openDays++;
@@ -3067,13 +3442,25 @@ function renderCal(): void {
       ? `<span class="pill-blue">✅ Liquidado</span>`
       : `<span class="pill-ok">🟢 Activa</span>`;
     const rowBg = workedSec > 0 ? '' : ' style="color:#94a3b8"';
+    const nightTag = crossedMidnight ? ' <span title="Turno nocturno cruzó medianoche">🌙</span>' : '';
+    const ts = mk?.punchTs || {};
+    const extras = Array.isArray(mk?.extraPunches) ? mk.extraPunches : [];
+
+    let extraCells = '';
+    for (let i = 0; i < maxExtra; i++) {
+      const pair = extras[i];
+      extraCells += renderSlotCell(d, `ex_${i}_in`, pair?.in, pair?.inTs, true);
+      extraCells += renderSlotCell(d, `ex_${i}_out`, pair?.out, pair?.outTs, true);
+    }
+
     return `<tr${rowBg}>
-      <td>${escapeHtml(d)}</td>
+      <td>${escapeHtml(d)}${nightTag}</td>
       <td>${statusHtml}</td>
-      ${renderSlotCell(d, 'e1', mk?.e1)}
-      ${renderSlotCell(d, 's2', mk?.s2)}
-      ${renderSlotCell(d, 'e3', mk?.e3)}
-      ${renderSlotCell(d, 's4', mk?.s4)}
+      ${renderSlotCell(d, 'e1', mk?.e1, ts.e1)}
+      ${renderSlotCell(d, 's2', mk?.s2, ts.s2)}
+      ${renderSlotCell(d, 'e3', mk?.e3, ts.e3)}
+      ${renderSlotCell(d, 's4', mk?.s4, ts.s4)}
+      ${extraCells}
       <td>${fmtHMS(normSec)}</td>
       <td style="color:#2563eb;font-weight:700">${fmtHMS(extSec)}</td>
       <td><strong>${fmtHMS(workedSec)}</strong></td>
@@ -3104,7 +3491,7 @@ function renderCal(): void {
   body.querySelectorAll<HTMLButtonElement>('[data-cal-edit]').forEach((btn) => {
     btn.onclick = () => {
       const [dateStr, slot] = (btn.dataset.calEdit || '').split('|');
-      if (dateStr && (slot === 'e1' || slot === 's2' || slot === 'e3' || slot === 's4')) {
+      if (dateStr && slot && isValidMarkSlot(slot)) {
         startInlineCalEdit(emp.id, dateStr, slot);
       }
     };
@@ -3692,7 +4079,7 @@ function setAuthTab(tab: AuthTab): void {
 }
 
 function getActiveMobEmployee(): EmployeeDoc | null {
-  const id = sessionStorage.getItem(MOB_KEY);
+  const id = localStorage.getItem(MOB_KEY) || sessionStorage.getItem(MOB_KEY);
   if (!id) return null;
   return state.employees.find((e) => e.id === id) || null;
 }
@@ -3748,6 +4135,7 @@ async function mobLogin(event: Event): Promise<void> {
     ci: emp.ci,
     sector: emp.sector,
   });
+  localStorage.setItem(MOB_KEY, emp.id);
   sessionStorage.setItem(MOB_KEY, emp.id);
   const pinInput = $<HTMLInputElement>('lPin');
   if (pinInput) pinInput.value = '';
@@ -3815,6 +4203,7 @@ async function mobRegister(event: Event): Promise<void> {
       ci,
       sector,
     });
+    localStorage.setItem(MOB_KEY, empId);
     sessionStorage.setItem(MOB_KEY, empId);
     ($<HTMLFormElement>('fReg'))?.reset();
     setMobRegIps(false);
@@ -3914,6 +4303,7 @@ async function mobResetPin(): Promise<void> {
       ci: targetEmp.ci,
       sector: targetEmp.sector,
     });
+    localStorage.setItem(MOB_KEY, targetEmp.id);
     sessionStorage.setItem(MOB_KEY, targetEmp.id);
     if (!state.employees.some((e) => e.id === targetEmp!.id)) {
       state.employees.push({ ...targetEmp, pin: newPin, ownerUid: currentUser.uid, pinResetEnabled: false });
@@ -3928,10 +4318,12 @@ async function mobResetPin(): Promise<void> {
 }
 
 function mobLogout(): void {
+  localStorage.removeItem(MOB_KEY);
   sessionStorage.removeItem(MOB_KEY);
+  mobExtraUnlockedForKey = '';
   stopGpsLoop();
   renderMobShell();
-  showToast('Sesión bloqueada — ingresa tu PIN para volver a entrar', 'info');
+  showToast('Sesión cerrada — ingresa tu PIN para volver a entrar', 'info');
 }
 
 function setMobSub(sub: MobSubTab): void {
@@ -3946,6 +4338,7 @@ function shiftMobDate(delta: number): void {
   const mDate = $<HTMLInputElement>('mDate');
   if (!mDate) return;
   mDate.value = shiftDateStr(mDate.value || todayStr(), delta);
+  mobExtraUnlockedForKey = '';
   renderMob();
 }
 
@@ -3974,47 +4367,172 @@ function renderMobShell(): void {
   }
 }
 
-function getNextPunchSlot(mk?: AttendanceMarkDoc): { key: 'e1' | 's2' | 'e3' | 's4'; label: string } | null {
-  if (!mk || !mk.e1) return { key: 'e1', label: 'Entrada 1 (Mañana)' };
-  if (!mk.s2) return { key: 's2', label: 'Salida 2 (Almuerzo)' };
-  if (!mk.e3) return { key: 'e3', label: 'Entrada 3 (Tarde)' };
-  if (!mk.s4) return { key: 's4', label: 'Salida 4 (Final)' };
-  return null;
+function getEffectiveMobMarkContext(emp: EmployeeDoc): {
+  dateStr: string;
+  mark: AttendanceMarkDoc | undefined;
+  isOvernightAnchored: boolean;
+} {
+  const today = todayStr();
+  const selectedDate = $<HTMLInputElement>('mDate')?.value || today;
+  if (selectedDate === today) {
+    const overnight = findOpenOvernightMark(emp.id, today);
+    if (overnight) {
+      return {
+        dateStr: overnight.dateStr,
+        mark: overnight.mark,
+        isOvernightAnchored: true,
+      };
+    }
+  }
+  return {
+    dateStr: selectedDate,
+    mark: state.marks[makeMarkDocId(emp.id, selectedDate)],
+    isOvernightAnchored: false,
+  };
+}
+
+interface NextMobPunchState {
+  locked: boolean;
+  slot: MarkSlot | null;
+  label: string;
+  canUnlockExtra: boolean;
+  extraPairsCount: number;
+}
+
+function getNextMobPunchState(
+  emp: EmployeeDoc,
+  effectiveDate: string,
+  mk?: AttendanceMarkDoc
+): NextMobPunchState {
+  if (!mk || !mk.e1) {
+    return { locked: false, slot: 'e1', label: '1. Entrada Mañana', canUnlockExtra: false, extraPairsCount: 0 };
+  }
+  if (!mk.s2) {
+    return { locked: false, slot: 's2', label: '2. Salida Almuerzo', canUnlockExtra: false, extraPairsCount: 0 };
+  }
+  if (!mk.e3) {
+    return { locked: false, slot: 'e3', label: '3. Entrada Tarde', canUnlockExtra: false, extraPairsCount: 0 };
+  }
+  if (!mk.s4) {
+    return { locked: false, slot: 's4', label: '4. Salida Final', canUnlockExtra: false, extraPairsCount: 0 };
+  }
+
+  const extras = Array.isArray(mk.extraPunches) ? mk.extraPunches : [];
+  if (extras.length > 0) {
+    const lastIdx = extras.length - 1;
+    const last = extras[lastIdx];
+    if (last && last.in && !last.out) {
+      return {
+        locked: false,
+        slot: `ex_${lastIdx}_out`,
+        label: `${4 + lastIdx * 2 + 2}. Salida Extra ${lastIdx + 1}`,
+        canUnlockExtra: false,
+        extraPairsCount: extras.length,
+      };
+    }
+  }
+
+  const unlockKey = `${emp.id}_${effectiveDate}`;
+  if (mobExtraUnlockedForKey === unlockKey && extras.length < 20) {
+    const nextIdx = extras.length;
+    return {
+      locked: false,
+      slot: `ex_${nextIdx}_in`,
+      label: `${4 + nextIdx * 2 + 1}. Entrada Extra ${nextIdx + 1}`,
+      canUnlockExtra: false,
+      extraPairsCount: extras.length,
+    };
+  }
+
+  return {
+    locked: true,
+    slot: null,
+    label: '',
+    canUnlockExtra: extras.length < 20,
+    extraPairsCount: extras.length,
+  };
+}
+
+function unlockMobExtraShift(): void {
+  const emp = getActiveMobEmployee();
+  if (!emp) return;
+  const ctx = getEffectiveMobMarkContext(emp);
+  mobExtraUnlockedForKey = `${emp.id}_${ctx.dateStr}`;
+  renderMob();
+  showToast('Huella habilitada para marcar Hora Extra', 'ok');
 }
 
 function renderMob(): void {
   const emp = getActiveMobEmployee();
   if (!emp) return;
-  const dateStr = $<HTMLInputElement>('mDate')?.value || todayStr();
-  const mk = state.marks[makeMarkDocId(emp.id, dateStr)];
-  const { normSec, extSec } = computeDayHours(mk, dateStr, state.rules, dateStr === todayStr());
+
+  const ctx = getEffectiveMobMarkContext(emp);
+  const { dateStr, mark: mk, isOvernightAnchored } = ctx;
+  const isLiveDay = dateStr === todayStr() || isOvernightAnchored;
+  const { normSec, extSec } = computeDayHours(mk, dateStr, state.rules, isLiveDay);
 
   const mNorm = $('mNorm');
   const mExt = $('mExt');
   const mMarks = $('mMarks');
   const fpLbl = $('fpLbl');
+  const fpBtn = $('fpBtn');
+  const extraBtn = $('btnMobAddExtra');
+  const nightBanner = $('mobNightBanner');
 
   if (mNorm) mNorm.textContent = fmtHMS(normSec);
   if (mExt) mExt.textContent = fmtHMS(extSec);
 
-  if (mMarks) {
-    const slotRow = (title: string, val?: string) =>
-      `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f1f5f9">
-        <span style="color:#475569;font-weight:600">${title}</span>
-        <strong style="color:${val ? '#0f172a' : '#94a3b8'}">${escapeHtml(val || '—')}</strong>
-      </div>`;
-    mMarks.innerHTML =
-      slotRow('1. Entrada Mañana (Ent. 1)', mk?.e1) +
-      slotRow('2. Salida Almuerzo (Sal. 2)', mk?.s2) +
-      slotRow('3. Entrada Tarde (Ent. 3)', mk?.e3) +
-      slotRow('4. Salida Final (Sal. 4)', mk?.s4);
+  if (nightBanner) {
+    if (isOvernightAnchored) {
+      nightBanner.classList.remove('hidden');
+      nightBanner.textContent = `🌙 Turno nocturno abierto desde ${dateStr} — marca tu salida para cerrarlo; luego se iniciará el día de hoy.`;
+    } else {
+      nightBanner.classList.add('hidden');
+      nightBanner.textContent = '';
+    }
   }
 
+  if (mMarks) {
+    const ts = mk?.punchTs || {};
+    const slotRow = (title: string, val?: string, punchMs?: number, isExtra = false) => {
+      const shown = formatTimeWithNextDayTag(val, punchMs, dateStr);
+      return `<div class="mob-mark-row${isExtra ? ' extra' : ''}">
+        <span class="lbl">${escapeHtml(title)}</span>
+        <span class="val${val ? '' : ' empty'}">${escapeHtml(shown)}</span>
+      </div>`;
+    };
+
+    let html =
+      slotRow('1. Entrada Mañana', mk?.e1, ts.e1) +
+      slotRow('2. Salida Almuerzo', mk?.s2, ts.s2) +
+      slotRow('3. Entrada Tarde', mk?.e3, ts.e3) +
+      slotRow('4. Salida Final', mk?.s4, ts.s4);
+
+    const extras = Array.isArray(mk?.extraPunches) ? mk.extraPunches : [];
+    extras.forEach((pair, idx) => {
+      html += slotRow(`${4 + idx * 2 + 1}. Entrada Extra ${idx + 1}`, pair.in, pair.inTs, true);
+      html += slotRow(`${4 + idx * 2 + 2}. Salida Extra ${idx + 1}`, pair.out, pair.outTs, true);
+    });
+
+    mMarks.innerHTML = html;
+  }
+
+  const nextState = getNextMobPunchState(emp, dateStr, mk);
+
+  if (fpBtn) {
+    fpBtn.classList.toggle('locked', nextState.locked);
+  }
+  if (extraBtn) {
+    extraBtn.classList.toggle('hidden', !nextState.locked || !nextState.canUnlockExtra);
+  }
   if (fpLbl) {
-    const next = getNextPunchSlot(mk);
-    fpLbl.textContent = next
-      ? `Mantén la huella para marcar: ${next.label}`
-      : 'Jornada completa (4/4 marcas registradas)';
+    if (!nextState.locked && nextState.slot) {
+      fpLbl.textContent = `Mantén la huella para marcar: ${nextState.label}`;
+    } else if (nextState.extraPairsCount > 0) {
+      fpLbl.textContent = `Jornada completa (4/4 + ${nextState.extraPairsCount} turno(s) extra cerrados)`;
+    } else {
+      fpLbl.textContent = 'Jornada completa (4/4 marcas registradas)';
+    }
   }
 }
 
@@ -4027,24 +4545,76 @@ function renderMobHours(): void {
   const month = monthEl?.value || currentMonthStr();
 
   const dates = range === 'WEEK' ? getCurrentWeekDates() : getMonthDates(month, range);
+  const today = todayStr();
+  const yesterday = shiftDateStr(today, -1);
+
   let sumNorm = 0;
   let sumExt = 0;
   const items: string[] = [];
 
   for (const d of dates) {
     const mk = state.marks[makeMarkDocId(emp.id, d)];
-    const { workedSec, normSec, extSec } = computeDayHours(mk, d, state.rules, d === todayStr());
+    const hasAny = Boolean(
+      mk && (mk.e1 || mk.s2 || mk.e3 || mk.s4 || (mk.extraPunches && mk.extraPunches.length))
+    );
+    const { workedSec, normSec, baseExtSec, extraPunchesSec, extSec, crossedMidnight } = computeDayHours(
+      mk,
+      d,
+      state.rules,
+      d === today || d === yesterday
+    );
     sumNorm += normSec;
     sumExt += extSec;
-    if (mk && (mk.e1 || mk.s2 || mk.e3 || mk.s4)) {
+    if (hasAny && mk) {
       const closedTag = emp.lastClosedDate && d <= emp.lastClosedDate ? ' • ✅ Liquidado' : '';
-      items.push(`<div class="card" style="margin:0;padding:8px;font-size:11px">
-        <div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:3px">
-          <span>${escapeHtml(d)}${closedTag}</span>
-          <span style="color:#16a34a">${fmtHMS(workedSec)}</span>
+      const nightTag = crossedMidnight ? ' • 🌙 Nocturno' : '';
+      const ts = mk.punchTs || {};
+      const extras = Array.isArray(mk.extraPunches) ? mk.extraPunches : [];
+
+      const compactRow = (lbl: string, val?: string, ms?: number, isExtra = false) =>
+        `<div class="mob-mark-row${isExtra ? ' extra' : ''}">
+          <span class="lbl">${escapeHtml(lbl)}</span>
+          <span class="val${val ? '' : ' empty'}">${escapeHtml(formatTimeWithNextDayTag(val, ms, d))}</span>
+        </div>`;
+
+      let amberHtml = '';
+      if (extras.length > 0) {
+        const extraRows = extras
+          .map(
+            (p, i) =>
+              compactRow(`${4 + i * 2 + 1}. Entrada Extra ${i + 1}`, p.in, p.inTs, true) +
+              compactRow(`${4 + i * 2 + 2}. Salida Extra ${i + 1}`, p.out, p.outTs, true)
+          )
+          .join('');
+        amberHtml = `<div class="mh-amber-box">
+          <div style="font-weight:800;color:#92400e;font-size:11px;margin-bottom:4px">⏱️ Turnos de Hora Extra</div>
+          ${extraRows}
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;padding-top:4px;border-top:1px dashed #fcd34d;font-size:11px;color:#92400e;font-weight:700">
+            <span>Subtotal Horas Extra</span>
+            <span>${fmtHMS(extraPunchesSec)}</span>
+          </div>
+        </div>`;
+      }
+
+      items.push(`<div class="mh-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:800;margin-bottom:5px;font-size:11.5px">
+          <span>${escapeHtml(d)}${nightTag}${closedTag}</span>
+          <span style="color:#2563eb">Norm: ${fmtHMS(normSec)} • Ext base: ${fmtHMS(baseExtSec)}</span>
         </div>
-        <div style="color:#475569">E1: ${escapeHtml(mk.e1 || '—')} | S2: ${escapeHtml(mk.s2 || '—')} | E3: ${escapeHtml(mk.e3 || '—')} | S4: ${escapeHtml(mk.s4 || '—')}</div>
-        <div style="color:#2563eb;margin-top:2px">Norm: ${fmtHMS(normSec)} • Ext: ${fmtHMS(extSec)}</div>
+        <div>
+          ${compactRow('1. Entrada Mañana', mk.e1, ts.e1)}
+          ${compactRow('2. Salida Almuerzo', mk.s2, ts.s2)}
+          ${compactRow('3. Entrada Tarde', mk.e3, ts.e3)}
+          ${compactRow('4. Salida Final', mk.s4, ts.s4)}
+        </div>
+        ${amberHtml}
+        <div class="mh-total-bar">
+          <div>
+            <div>Total Acumulado del Día</div>
+            <div style="font-size:10px;color:#cbd5e1;font-weight:500">Norm: ${fmtHMS(normSec)} • Extras: ${fmtHMS(extSec)}</div>
+          </div>
+          <span style="color:#4ade80;font-size:12.5px">${fmtHMS(workedSec)}</span>
+        </div>
       </div>`);
     }
   }
@@ -4067,6 +4637,10 @@ function renderMobHours(): void {
 // === Biometric Fingerprint Punch ===
 function fpDown(): void {
   const btn = $('fpBtn');
+  if (btn?.classList.contains('locked')) {
+    showToast('Jornada completa — toca "+ Marcar Hora Extra" para habilitar un turno extra', 'info');
+    return;
+  }
   if (btn) btn.classList.add('scan');
   fpHolding = true;
   if (fpHoldTimer) window.clearTimeout(fpHoldTimer);
@@ -4082,6 +4656,10 @@ function fpDown(): void {
 function fpUp(): void {
   const btn = $('fpBtn');
   if (btn) btn.classList.remove('scan');
+  if (btn?.classList.contains('locked')) {
+    fpHolding = false;
+    return;
+  }
   if (fpHolding) {
     fpHolding = false;
     if (fpHoldTimer) window.clearTimeout(fpHoldTimer);
@@ -4103,48 +4681,118 @@ async function recordPunch(): Promise<void> {
   const emp = getActiveMobEmployee();
   if (!emp) return;
 
-  const dateStr = $<HTMLInputElement>('mDate')?.value || todayStr();
+  const ctx = getEffectiveMobMarkContext(emp);
+  const { dateStr, mark: existingMark, isOvernightAnchored } = ctx;
   if (!SCHEMA_LIMITS.DATE_PATTERN.test(dateStr)) {
     showToast('Fecha inválida', 'err');
     return;
   }
 
-  const markId = makeMarkDocId(emp.id, dateStr);
-  const existingMark = state.marks[markId];
-  const next = getNextPunchSlot(existingMark);
-  if (!next) {
-    showToast('Las 4 marcaciones del día ya están completas', 'info');
+  const nextState = getNextMobPunchState(emp, dateStr, existingMark);
+  if (nextState.locked || !nextState.slot) {
+    showToast('Jornada completa — toca "+ Marcar Hora Extra" para registrar un turno extra', 'info');
     return;
   }
 
+  const markId = makeMarkDocId(emp.id, dateStr);
+  const nowMs = Date.now();
   const stamp = nowTimeStr();
   const markRef = doc(db, 'marks', markId);
 
+  const nextBase: Record<BaseMarkSlot, string> = {
+    e1: existingMark?.e1 || '',
+    s2: existingMark?.s2 || '',
+    e3: existingMark?.e3 || '',
+    s4: existingMark?.s4 || '',
+  };
+  const nextTs = cleanPunchTs(existingMark?.punchTs);
+  const nextExtras = cleanExtraPunches(existingMark?.extraPunches);
+
+  const exInfo = parseExtraSlot(nextState.slot);
+  if (exInfo) {
+    while (nextExtras.length <= exInfo.idx) {
+      nextExtras.push({ in: '', out: '' });
+    }
+    const pair = { ...nextExtras[exInfo.idx] };
+    if (exInfo.field === 'in') {
+      pair.in = stamp;
+      pair.inTs = nowMs;
+    } else {
+      pair.out = stamp;
+      pair.outTs = nowMs;
+    }
+    nextExtras[exInfo.idx] = pair;
+  } else {
+    const bSlot = nextState.slot as BaseMarkSlot;
+    nextBase[bSlot] = stamp;
+    nextTs[bSlot] = nowMs;
+  }
+
   try {
     if (!existingMark) {
-      await setDoc(markRef, {
+      const createdDoc: AttendanceMarkDoc = {
+        id: markId,
         employeeId: emp.id,
         ownerUid: emp.ownerUid || currentUser.uid,
         date: dateStr,
-        e1: next.key === 'e1' ? stamp : '',
-        s2: next.key === 's2' ? stamp : '',
-        e3: next.key === 'e3' ? stamp : '',
-        s4: next.key === 's4' ? stamp : '',
+        e1: nextBase.e1,
+        s2: nextBase.s2,
+        e3: nextBase.e3,
+        s4: nextBase.s4,
+        punchTs: nextTs,
+        extraPunches: nextExtras,
         lat: lastCoords ? lastCoords.lat : 0,
         lng: lastCoords ? lastCoords.lng : 0,
         hasGps: Boolean(lastCoords),
+      };
+      await setDoc(markRef, {
+        employeeId: createdDoc.employeeId,
+        ownerUid: createdDoc.ownerUid,
+        date: createdDoc.date,
+        e1: createdDoc.e1,
+        s2: createdDoc.s2,
+        e3: createdDoc.e3,
+        s4: createdDoc.s4,
+        punchTs: nextTs,
+        extraPunches: nextExtras,
+        lat: createdDoc.lat,
+        lng: createdDoc.lng,
+        hasGps: createdDoc.hasGps,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      state.marks[markId] = createdDoc;
     } else {
       await updateDoc(markRef, {
-        [next.key]: stamp,
+        e1: nextBase.e1,
+        s2: nextBase.s2,
+        e3: nextBase.e3,
+        s4: nextBase.s4,
+        punchTs: nextTs,
+        extraPunches: nextExtras,
         lat: lastCoords ? lastCoords.lat : existingMark.lat || 0,
         lng: lastCoords ? lastCoords.lng : existingMark.lng || 0,
         hasGps: Boolean(lastCoords || existingMark.hasGps),
         updatedAt: serverTimestamp(),
       });
+      state.marks[markId] = {
+        ...existingMark,
+        e1: nextBase.e1,
+        s2: nextBase.s2,
+        e3: nextBase.e3,
+        s4: nextBase.s4,
+        punchTs: nextTs,
+        extraPunches: nextExtras,
+      };
     }
+
+    if (exInfo && exInfo.field === 'in') {
+      // Consumed unlock; exit will remain unlocked automatically until closed, then fingerprint locks again
+      mobExtraUnlockedForKey = '';
+    }
+
+    saveLocalCache();
+    syncGlobalMarksDependents();
 
     if (navigator.vibrate) {
       try {
@@ -4153,7 +4801,13 @@ async function recordPunch(): Promise<void> {
         // ignore
       }
     }
-    showToast(`✓ ${next.label} marcada a las ${stamp}`, 'ok');
+
+    const closedOvernight = isOvernightAnchored && !hasOpenPunch(state.marks[markId]);
+    if (closedOvernight) {
+      showToast(`✓ ${nextState.label} cerrada (${stamp}). Turno nocturno del ${dateStr} finalizado.`, 'ok');
+    } else {
+      showToast(`✓ ${nextState.label} marcada a las ${stamp}`, 'ok');
+    }
     void captureAndPushGps(true);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `marks/${markId}`);
@@ -4324,6 +4978,8 @@ Object.assign(window, {
   printSalaryReceipt,
   downloadSalaryPdf,
   onLegEmpChange,
+  onLegHourlyRateInput,
+  onLegSalaryInput,
   onLegReasonChange,
   addLegalConceptRow,
   removeLegalConceptRow,
@@ -4372,6 +5028,7 @@ Object.assign(window, {
   clearRememberedMobUser,
   setMobSub,
   shiftMobDate,
+  unlockMobExtraShift,
   renderMob,
   fpDown,
   fpUp,
@@ -4392,21 +5049,10 @@ Object.assign(window, {
 
 // === Bootstrap ===
 async function bootstrap(): Promise<void> {
-  // Migrate any legacy persistent mobile session ID to remembered quick-PIN user
-  const legacyMobId = localStorage.getItem(MOB_KEY);
-  if (legacyMobId) {
-    if (!loadRememberedMobUser()) {
-      const legacyEmp = state.employees.find((e) => e.id === legacyMobId);
-      if (legacyEmp) {
-        saveRememberedMobUser({
-          employeeId: legacyEmp.id,
-          name: legacyEmp.name,
-          ci: legacyEmp.ci,
-          sector: legacyEmp.sector,
-        });
-      }
-    }
-    localStorage.removeItem(MOB_KEY);
+  // Keep mobile session persistent in localStorage across background/lock/WhatsApp switches until explicit logout
+  const ssMobId = sessionStorage.getItem(MOB_KEY);
+  if (ssMobId && !localStorage.getItem(MOB_KEY)) {
+    localStorage.setItem(MOB_KEY, ssMobId);
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -4449,19 +5095,20 @@ async function bootstrap(): Promise<void> {
 
   renderLegalExtraRows();
   initPwaListeners();
+  updateConnectionBadges();
   renderAll();
   if (localStorage.getItem(ADM_KEY) === '1') {
     openTab('portada');
   }
   startClock();
 
-  const conn = await testConnection();
-  if (!conn.online) {
-    showToast(conn.message, 'err');
-  }
+  // Wait for persistent local Firebase Auth state before attaching onAuthStateChanged
+  await authPersistenceReady;
 
   onAuthStateChanged(auth, (user) => {
+    authResolved = true;
     currentUser = user;
+    updateConnectionBadges();
     if (user && user.emailVerified) {
       void attachFirestoreListeners(user).then(() => {
         if (getActiveMobEmployee()) startGpsLoop();
@@ -4474,6 +5121,20 @@ async function bootstrap(): Promise<void> {
       renderMobShell();
     }
   });
+
+  // Smoothly refresh UI & clock when returning from background (WhatsApp / phone lock) without resetting session
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      updateConnectionBadges();
+      renderMobShell();
+      if (localStorage.getItem(ADM_KEY) === '1') renderHoy();
+    }
+  });
+
+  const conn = await testConnection();
+  if (!conn.online) {
+    showToast(conn.message, 'err');
+  }
 }
 
 void bootstrap();

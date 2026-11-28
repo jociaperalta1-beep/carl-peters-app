@@ -374,7 +374,10 @@ body.mob-only .screen{border-radius:0!important;min-height:100vh!important;flex:
           <div class="card">
             <div class="card-top">
               <strong>Calculadora Legal de Liquidación Final e Indemnización (Código Laboral PY)</strong>
-              <span id="legTenureBadge" class="pill-blue">Antigüedad: —</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <span id="legDailyWageBadge" class="pill-ok">Jornal Diario Base: 0 Gs. (solo hora normal × 8h, sin extras)</span>
+                <span id="legTenureBadge" class="pill-blue">Antigüedad: —</span>
+              </div>
             </div>
             <div class="grid-4">
               <div><label>Funcionario</label><select id="legEmp" onchange="onLegEmpChange()"></select></div>
@@ -391,7 +394,8 @@ body.mob-only .screen{border-radius:0!important;min-height:100vh!important;flex:
                 </select>
                 <input id="legCustomReason" type="text" maxlength="80" placeholder="Escribe el motivo..." class="hidden" style="margin-top:6px" oninput="recalcLegalLive()"/>
               </div>
-              <div><label>Salario Mensual Base (Gs.)</label><input id="legSalary" type="number" min="0" step="50000" value="2798309" oninput="recalcLegalLive()"/></div>
+              <div><label>Valor Hora Normal (Gs.) — × 8h</label><input id="legHourlyRate" type="number" min="0" step="500" value="0" placeholder="Ej. 15000" oninput="onLegHourlyRateInput()"/></div>
+              <div><label>Salario Ordinario Mensual (Gs.)</label><input id="legSalary" type="number" min="0" step="50000" value="2798309" oninput="onLegSalaryInput()"/></div>
               <div><label>Días trabajados pendientes</label><input id="legPendingDays" type="number" min="0" max="31" value="15" oninput="recalcLegalLive()"/></div>
               <div><label>Años Trabajados (manual &gt; 0)</label><input id="legManualYears" type="number" min="0" max="60" step="0.5" value="0" placeholder="0 = Auto por fechas" oninput="recalcLegalLive()"/></div>
               <div><label>Vacaciones causadas no gozadas (días)</label><input id="legUnpaidVac" type="number" min="0" max="60" value="0" oninput="recalcLegalLive()"/></div>
